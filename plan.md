@@ -22,7 +22,7 @@
 - [x] Draw blank canvas
 - [x] Draw player
 - [ ] Draw platforms
-  - [ ] Single platform
+  - [x] Single platform
   - [ ] Multiple platforms
 - [ ] Draw enemies
   - [ ] Single enemy
