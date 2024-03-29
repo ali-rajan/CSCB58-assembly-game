@@ -34,21 +34,29 @@
 #
 #####################################################################
 
+
+#################### CONSTANTS ####################
+
 .eqv BASE_ADDRESS 0x10008000    # $gp
 
-# Display dimensions in number of units (not pixels)
+# Dimensions in number of units (not pixels)
+# Note: on my screen, each unit is 5 pixels in the MIPS Bitmap Display as the display is 320x320 instead of 256x256
+# (measured using a screen ruler)
 .eqv DISPLAY_WIDTH 64
 .eqv DISPLAY_HEIGHT 64
 .eqv DISPLAY_RIGHT 63   # DISPLAY_WIDTH - 1
 .eqv DISPLAY_BOTTOM 63  # DISPLAY_HEIGHT - 1
 
-.eqv PLAYER_WIDTH 3
-.eqv PLAYER_HEIGHT 3
+.eqv PLAYER_WIDTH 4
+.eqv PLAYER_HEIGHT 4
+
+.eqv PLATFORM_WIDTH 16
+.eqv PLATFORM_THICKNESS 2
 
 # Colours
-.eqv RED 0xFF0000
-.eqv GREEN 0x00FF00
-.eqv BLUE 0x0000FF
+.eqv COLOUR_BACKGROUND 0x000000     # Black
+.eqv COLOUR_PLATFORM 0x964B00       # Brown
+.eqv COLOUR_PLAYER 0xFF0000         # Red
 
 .text
 
@@ -57,7 +65,7 @@
 j main
 
 
-##### DRAWING #####
+#################### DRAWING ####################
 
 # Computes the framebuffer address of the unit (x, y)
 # Parameters:
@@ -199,13 +207,30 @@ _draw_entity_loop_end:
 .end_macro
 
 
-##### GAME #####
+######################### GAME ####################
 
 main:
-    fill_background(RED)
-    li $a0, 0
-    li $a1, 0
-    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, GREEN)
+    fill_background(COLOUR_BACKGROUND)
+
+    li $a0, DISPLAY_WIDTH
+    subi $a0, $a0, PLAYER_WIDTH
+    sra $a0, $a0, 1                 # $a0 = x-value to center player
+
+    li $a1, DISPLAY_HEIGHT
+    subi $a1, $a1, PLAYER_HEIGHT
+    sra $a1, $a1, 1                 # $a1 = y-value to center player
+
+    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)   # Draw player
+
+    li $a0, DISPLAY_WIDTH
+    subi $a0, $a0, PLATFORM_WIDTH
+    sra $a0, $a0, 1                     # $a0 = x-value to center platform
+
+    li $a1, DISPLAY_HEIGHT
+    sra $a1, $a1, 1
+    addi $a1, $a1, PLATFORM_THICKNESS   # $a1 = y-value to center platform below player
+
+    draw_entity($a0, $a1, PLATFORM_WIDTH, PLATFORM_THICKNESS, COLOUR_PLATFORM)     # Draw platform
 
     # Exit
     li      $v0,    10
