@@ -19,11 +19,12 @@
 
 ## Milestone 1
 
-- [ ] Draw blank canvas
-- [ ] Draw player
-- [ ] Draw platforms
-  - [ ] Single platform
-  - [ ] Multiple platforms
+- [x] Draw blank canvas
+- [x] Draw player
+- [x] Draw platforms
+  - [x] Single platform
+  - [x] Multiple platforms
+  - [x] Random platform positioning
 - [ ] Draw enemies
   - [ ] Single enemy
   - [ ] Multiple enemies
