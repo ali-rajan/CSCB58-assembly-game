@@ -19,8 +19,8 @@
 
 ## Milestone 1
 
-- [ ] Draw blank canvas
-- [ ] Draw player
+- [x] Draw blank canvas
+- [x] Draw player
 - [ ] Draw platforms
   - [ ] Single platform
   - [ ] Multiple platforms
