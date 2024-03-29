@@ -141,11 +141,11 @@ _fill_background_loop_end:
 
 # Draws a rectangular entity with the specified attributes
 # Parameters:
-    # %x_reg:
-    # %y_reg:
-    # %width
-    # %height
-    # %colour:
+    # %x_reg: register storing the x-value of the rectangle's top-left unit
+    # %y_reg: register storing the y-value of the rectangle's top-left unit
+    # %width: the rectangle's width in units
+    # %height: the rectangle's height in units
+    # %colour: the rectangle's colour (an immediate value)
 # Uses:
     # %x_reg
     # %y_reg
