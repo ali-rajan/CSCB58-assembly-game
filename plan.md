@@ -21,9 +21,10 @@
 
 - [x] Draw blank canvas
 - [x] Draw player
-- [ ] Draw platforms
+- [x] Draw platforms
   - [x] Single platform
-  - [ ] Multiple platforms
+  - [x] Multiple platforms
+  - [x] Random platform positioning
 - [ ] Draw enemies
   - [ ] Single enemy
   - [ ] Multiple enemies
