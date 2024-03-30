@@ -48,8 +48,10 @@
 .eqv DISPLAY_RIGHT 63   # DISPLAY_WIDTH - 1
 .eqv DISPLAY_BOTTOM 63  # DISPLAY_HEIGHT - 1
 
-.eqv PLAYER_WIDTH 4
-.eqv PLAYER_HEIGHT 4
+.eqv PLAYER_WIDTH 3
+.eqv PLAYER_HEIGHT 3
+.eqv PLAYER_INITIAL_X 2
+.eqv PLAYER_INITIAL_Y 29
 
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
@@ -68,8 +70,8 @@
 
 .data
 
-player_x: .word 2
-player_y: .word 61
+player_x: .word PLAYER_INITIAL_X
+player_y: .word PLAYER_INITIAL_Y
 
 # Coordinates of the platforms
 platforms_x: .word 0:NUM_PLATFORMS
@@ -287,12 +289,17 @@ _draw_entity_loop_end:
     li $t3, NUM_PLATFORMS
     sll $t3, $t3, 2         # $t3 = NUM_PLATFORMS * sizeof(word)
 
-    # add $t4, $t0, $t2       # $t4 = addr(platforms_x[i])
-    # add $t5, $t1, $t2       # $t5 = addr(platforms_y[i])
-    # # li $t6
+    add $t4, $t0, $t2           # $t4 = addr(platforms_x[0])
+    add $t5, $t1, $t2           # $t5 = addr(platforms_y[0])
+    li $t6, PLAYER_INITIAL_X
+    li $t7, PLAYER_INITIAL_Y
+    addi $t7, $t7, PLAYER_HEIGHT
+    # Place the first platform right below the player's initial position
+    sw $t6, 0($t4)
+    sw $t7, 0($t5)
+    addi $t2, $t2, 4
 
-
-_initialize_platforms_loop:
+_initialize_platforms_loop:                             # $t2 = array offset
     bge $t2, $t3, _initialize_platforms_loop_end        # while i < NUM_PLATFORMS
     add $t4, $t0, $t2
     add $t5, $t1, $t2
@@ -359,13 +366,13 @@ _draw_platforms_loop_end:
 
 main:
     fill_background(COLOUR_BACKGROUND)
-    # initialize_platforms()
-    # draw_platforms()
+    initialize_platforms()
+    draw_platforms()
 
-    # load_word(player_x, $a0)
-    # load_word(player_y, $a1)
+    load_word(player_x, $a0)
+    load_word(player_y, $a1)
 
-    # draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
+    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
     # TODO: make platforms randomly spawn to the right and only draw pixels on screen
 
