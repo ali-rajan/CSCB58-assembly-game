@@ -37,7 +37,8 @@
 
 #################### CONSTANTS ####################
 
-.eqv BASE_ADDRESS 0x10008000    # $gp
+.eqv DISPLAY_BASE_ADDRESS 0x10008000    # $gp
+.eqv DISPLAY_END_ADDRESS 0x1000bffc     # Bottom-right unit's address
 
 # Dimensions in number of units (not pixels)
 # Note: on my screen, each unit is 5 pixels in the MIPS Bitmap Display as the display is 320x320 instead of 256x256
@@ -67,6 +68,9 @@
 
 .data
 
+player_x: .word 2
+player_y: .word 61
+
 # Coordinates of the platforms
 platforms_x: .word 0:NUM_PLATFORMS
 platforms_y: .word 0:NUM_PLATFORMS
@@ -78,7 +82,42 @@ platforms_y: .word 0:NUM_PLATFORMS
 j main
 
 
-#################### DRAWING ####################
+#################### UTILITIES ####################
+
+# Loads the data from the given word into the given register
+# Parameters:
+    # %word_addr: the address of the word to load
+    # %dest_reg: the register to load the word into
+# Returns:
+    # %dest_reg: the word
+# Uses:
+    # %dest_reg
+.macro load_word(%word_addr, %dest_reg)
+    la %dest_reg, %word_addr
+    lw %dest_reg, 0(%dest_reg)
+.end_macro
+
+# Returns a random integer n satisfying %min <= n <= %max.
+# Parameters:
+    # %min: the range's minimum, an immediate value
+    # %max: the range's maximum, an immediate value
+# Returns:
+    # $v0: the random integer
+# Uses:
+    # $a0: random number generator syscall
+    # $a1: random number generator syscall
+    # $v0
+.macro random_integer(%min, %max)
+    li $v0, 42              # syscall code for random number generator
+    li $a0, 0               # argument for random number generator ID (any integer)
+    li $a1, %max
+    subi $a1, $a1, %min
+    addi $a1, $a1, 1        # $a1 = %max - %min + 1, the upper bound for the syscall random number
+    syscall                 # $a0 = random integer n satisfying 0 <= n < %max - %min + 1
+
+    addi $a0, $a0, %min     # $a0 is now some n satisfying %min <= n < %max + 1
+    move $v0, $a0
+.end_macro
 
 # Computes the framebuffer address of the unit (x, y).
 # Parameters:
@@ -96,13 +135,13 @@ j main
     li $t0, %x
     li $t1, %y
     li $t2, DISPLAY_WIDTH
-    li $t3, BASE_ADDRESS
+    li $t3, DISPLAY_BASE_ADDRESS
 
     mult $t1, $t2
     mflo $v0
     add $v0, $v0, $t0
     sll $v0, $v0, 2         # $v0 = (y * DISPLAY_WIDTH + x) * 4 = offset from base address
-    add $v0, $v0, $t3       # $v0 = offset + BASE_ADDRESS
+    add $v0, $v0, $t3       # $v0 = offset + DISPLAY_BASE_ADDRESS
 .end_macro
 
 # Computes the framebuffer address of the unit (x, y).
@@ -119,14 +158,17 @@ j main
     # $v0
 .macro unit_address_reg(%x_reg, %y_reg)
     li $t2, DISPLAY_WIDTH
-    li $t3, BASE_ADDRESS
+    li $t3, DISPLAY_BASE_ADDRESS
 
     mult %y_reg, $t2
     mflo $v0
     add $v0, $v0, %x_reg
     sll $v0, $v0, 2         # $v0 = (y * DISPLAY_WIDTH + x) * 4 = offset from base address
-    add $v0, $v0, $t3       # $v0 = offset + BASE_ADDRESS
+    add $v0, $v0, $t3       # $v0 = offset + DISPLAY_BASE_ADDRESS
 .end_macro
+
+
+#################### DRAWING ####################
 
 # Colours the given unit with the given colour.
 # Parameters:
@@ -144,21 +186,17 @@ j main
 # Parameters:
     # %colour: colour (immediate value)
 # Uses:
-    # $t0: unit_address calls
-    # $t1: unit_address calls
-    # $t2: unit_address calls
-    # $t3: unit_address calls
-    # $v0: unit_address calls
-    # $s0
+    # $t0: colour_unit calls
+    # $s0: colour_unit calls and macro
+    # $s1
 .macro fill_background(%colour)
-    unit_address(DISPLAY_RIGHT, DISPLAY_BOTTOM)
-    move $s0, $v0               # $s0 = addr(last unit to colour)
-    unit_address(0, 0)   # $v0 = addr(current unit)
+    li $s0, DISPLAY_BASE_ADDRESS
+    li $s1, DISPLAY_END_ADDRESS
 
 _fill_background_loop:
-    bgt $v0, $s0, _fill_background_loop_end     # while the last unit is not reached
-    colour_unit($v0, %colour)
-    add $v0, $v0, 4                             # next unit is sizeof(word) ahead
+    bgt $s0, $s1, _fill_background_loop_end     # while the last unit is not reached
+    colour_unit($s0, %colour)
+    add $s0, $s0, 4                             # next unit is sizeof(word) ahead
     j _fill_background_loop
 
 _fill_background_loop_end:
@@ -229,28 +267,6 @@ _draw_entity_loop_end:
 
 #################### SPRITES ####################
 
-# Returns a random integer n satisfying %min <= n <= %max.
-# Parameters:
-    # %min: the range's minimum, an immediate value
-    # %max: the range's maximum, an immediate value
-# Returns:
-    # $v0: the random integer
-# Uses:
-    # $a0: random number generator syscall
-    # $a1: random number generator syscall
-    # $v0
-.macro random_integer(%min, %max)
-    li $v0, 42              # syscall code for random number generator
-    li $a0, 0               # argument for random number generator ID (any integer)
-    li $a1, %max
-    subi $a1, $a1, %min
-    addi $a1, $a1, 1        # $a1 = %max - %min + 1, the upper bound for the syscall random number
-    syscall                 # $a0 = random integer n satisfying 0 <= n < %max - %min + 1
-
-    addi $a0, $a0, %min     # $a0 is now some n satisfying %min <= n < %max + 1
-    move $v0, $a0
-.end_macro
-
 # Randomly generates x and y-values for all platforms, storing them in platform_x and platform_y (respectively).
 # Uses:
     # $t0
@@ -270,6 +286,11 @@ _draw_entity_loop_end:
     add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
     li $t3, NUM_PLATFORMS
     sll $t3, $t3, 2         # $t3 = NUM_PLATFORMS * sizeof(word)
+
+    # add $t4, $t0, $t2       # $t4 = addr(platforms_x[i])
+    # add $t5, $t1, $t2       # $t5 = addr(platforms_y[i])
+    # # li $t6
+
 
 _initialize_platforms_loop:
     bge $t2, $t3, _initialize_platforms_loop_end        # while i < NUM_PLATFORMS
@@ -338,18 +359,16 @@ _draw_platforms_loop_end:
 
 main:
     fill_background(COLOUR_BACKGROUND)
-    initialize_platforms()
-    draw_platforms()
+    # initialize_platforms()
+    # draw_platforms()
 
-    li $a0, DISPLAY_WIDTH
-    subi $a0, $a0, PLAYER_WIDTH
-    sra $a0, $a0, 1                 # $a0 = x-value to center player
+    # load_word(player_x, $a0)
+    # load_word(player_y, $a1)
 
-    li $a1, DISPLAY_HEIGHT
-    subi $a1, $a1, PLAYER_HEIGHT
-    sra $a1, $a1, 1                 # $a1 = y-value to center player
+    # draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)   # Draw player
+    # TODO: make platforms randomly spawn to the right and only draw pixels on screen
+
 
     # Exit
     li $v0, 10
