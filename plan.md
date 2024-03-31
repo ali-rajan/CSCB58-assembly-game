@@ -25,9 +25,9 @@
   - [x] Single platform
   - [x] Multiple platforms
   - [x] Random platform positioning
-- [ ] Draw enemies
-  - [ ] Single enemy
-  - [ ] Multiple enemies
+- [x] Draw enemies
+  - [x] Single enemy
+  - [x] Multiple enemies
 
 ## Milestone 2
 
