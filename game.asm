@@ -37,22 +37,20 @@
 
 #################### CONSTANTS ####################
 
+# Display
 .eqv DISPLAY_BASE_ADDRESS 0x10008000    # $gp
 .eqv DISPLAY_END_ADDRESS 0x1000bffc     # Bottom-right unit's address
-.eqv KEYSTROKE_ADDRESS 0xffff0000
 
 # Dimensions in number of units (not pixels)
 # Note: on my screen, each unit is 5 pixels in the MIPS Bitmap Display as the display is 320x320 instead of 256x256
 # (measured using a screen ruler)
 .eqv DISPLAY_WIDTH 64
 .eqv DISPLAY_HEIGHT 64
-
 .eqv PLAYER_WIDTH 3
 .eqv PLAYER_HEIGHT 3
 # Player's initial top-left unit position
 .eqv PLAYER_INITIAL_X 2
 .eqv PLAYER_INITIAL_Y 29
-
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
 # Platform spawn position ranges for the top-left unit
@@ -61,7 +59,6 @@
 # TODO: adjust y-range so it is never impossible to jump onto one (height-wise)
 .eqv PLATFORM_MIN_Y 0
 .eqv PLATFORM_MAX_Y 63
-
 .eqv ENEMY_WIDTH 2
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
@@ -76,6 +73,19 @@
 .eqv COLOUR_PLATFORM 0x964B00       # brown
 .eqv COLOUR_PLAYER 0x0000FF         # blue
 .eqv COLOUR_ENEMY 0xFF0000          # red
+
+# Keyboard
+.eqv KEYSTROKE_ADDRESS 0xffff0000
+.eqv ASCII_W 0x77
+.eqv ASCII_S 0x73
+.eqv ASCII_A 0x61
+.eqv ASCII_D 0x64
+.eqv ASCII_R 0x72
+.eqv ASCII_Q 0x71
+
+# Movement
+.eqv SLEEP_DURATION 40              # sleep duration in milliseconds (TODO: set to higher value when debugging)
+.eqv PLAYER_DELTA_X 2               # x-value increment for each keypress
 
 .eqv NUM_PLATFORMS 5
 .eqv NUM_ENEMIES 3
@@ -93,6 +103,10 @@ platforms_y: .word 0:NUM_PLATFORMS
 enemies_x: .word 0:NUM_ENEMIES
 enemies_y: .word 0:NUM_ENEMIES
 
+# Debug text
+keypress_text_debug: .asciiz "key pressed: "
+newline: .asciiz "\n"
+
 .text
 
 .globl main
@@ -102,10 +116,44 @@ j main
 
 #################### UTILITIES ####################
 
-# Loads the data from the given word into the given register
+# Prints the given string.
 # Parameters:
-    # %word_addr: the address of the word to load
-    # %dest_reg: the register to load the word into
+    # %str: .asciiz string to print
+# Uses:
+    # $v0
+    # $a0
+.macro print_str(%str)
+    li $v0, 4
+    la $a0, %str
+    syscall
+.end_macro
+
+# Prints the given register's character value.
+# Parameters:
+    # %reg: register storing the ASCII value
+# Uses:
+    # $v0
+    # $a0
+.macro print_char(%reg)
+    li $v0, 11
+    move $a0, %reg
+    syscall
+.end_macro
+
+# Sleeps for SLEEP_DURATION milliseconds.
+# Uses:
+    # $v0
+    # $a0
+.macro sleep()
+    li $v0, 32
+    li $a0, SLEEP_DURATION
+    syscall
+.end_macro
+
+# Loads the data from the given word into the given register.
+# Parameters:
+    # %word_addr: address of the word to load
+    # %dest_reg: register to load the word into
 # Returns:
     # %dest_reg: the word
 # Uses:
@@ -113,6 +161,18 @@ j main
 .macro load_word(%word_addr, %dest_reg)
     la %dest_reg, %word_addr
     lw %dest_reg, 0(%dest_reg)
+.end_macro
+
+# Stores the data from the the given register in given word.
+# Parameters:
+    # %word_addr: address of the word to store data in
+    # %src_reg: register to read from
+# Uses:
+    # $t0
+    # %src_reg
+.macro store_word(%word_addr, %src_reg)
+    la $t0, %word_addr
+    sw %src_reg, 0($t0)
 .end_macro
 
 # Returns a random integer n satisfying %min <= n <= %max.
@@ -492,32 +552,89 @@ _draw_entities_end:
 .end_macro
 
 
+#################### MOVEMENT ####################
+
+# Adds %delta_x to the player's x-coordinate.
+# Parameters:
+    # %delta_x: change in x-value, an immediate value
+# Uses:
+    # $t0: load_word and store_word
+    # $t1
+.macro update_player_x(%delta_x)
+    load_word(player_x, $t1)
+    addi $t1, $t1, %delta_x
+    store_word(player_x, $t1)
+.end_macro
+
+
 #################### GAME ####################
 
 .macro handle_keypress()
-    li $t0, KEYSTROKE_ADDRESS
-    lw $t1, 0($t0)
-    bne $t1, 1, _handle_keypress_end
+    li $s0, KEYSTROKE_ADDRESS
+    lw $s1, 0($s0)
+    bne $s1, 1, _handle_keypress_end
 
-    lw $t1, 4($t0)  # ASCII value of key pressed
+    lw $s1, 4($s0)  # ASCII value of key pressed
+    # TODO: remove once done debugging
+    print_char($s1)
+    print_str(newline)
+
+    beq $s1, ASCII_W, _w_pressed
+    beq $s1, ASCII_S, _s_pressed
+    beq $s1, ASCII_A, _a_pressed
+    beq $s1, ASCII_D, _d_pressed
+    beq $s1, ASCII_R, _r_pressed
+    beq $s1, ASCII_Q, _q_pressed
+    j _handle_keypress_end
+
+_w_pressed:
+    j _handle_keypress_end
+_s_pressed:
+    j _handle_keypress_end
+_a_pressed:
+    update_player_x(-PLAYER_DELTA_X)
+    j _handle_keypress_end
+_d_pressed:
+    update_player_x(PLAYER_DELTA_X)
+    j _handle_keypress_end
+_r_pressed:
+    j initialize
+_q_pressed:
+    j quit
 
 _handle_keypress_end:
 .end_macro
 
-main:
-    fill_background(COLOUR_BACKGROUND)
-    initialize_enemies()
-    draw_enemies()
-    # TODO: handle enemy collision with platform (e.g. draw platform on top of enemy)
 
+main:
+
+initialize:     # jump here on restart
+    fill_background(COLOUR_BACKGROUND)
+
+    li $s0, PLAYER_INITIAL_X
+    li $s1, PLAYER_INITIAL_Y
+    store_word(player_x, $s0)
+    store_word(player_y, $s1)
+
+    initialize_enemies()
     initialize_platforms()
+
+    # TODO: handle enemy collision with platform (e.g. draw platform on top of enemy)
+    draw_enemies()
     draw_platforms()
+
+game_loop:
 
     load_word(player_x, $a0)
     load_word(player_y, $a1)
-
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
+    handle_keypress()
+    sleep()
+
+    j game_loop
+
+quit:
     # Exit
     li $v0, 10
     syscall
