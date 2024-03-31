@@ -77,7 +77,6 @@
 # Keyboard
 .eqv KEYSTROKE_ADDRESS 0xffff0000
 .eqv ASCII_W 0x77
-.eqv ASCII_S 0x73
 .eqv ASCII_A 0x61
 .eqv ASCII_D 0x64
 .eqv ASCII_R 0x72
@@ -569,6 +568,17 @@ _draw_entities_end:
 
 #################### GAME ####################
 
+# Handles the keypresses for movement, restarting, and quitting the game. For player movement, the original player
+# position is filled with the background colour before updating the position; the player is not redrawn after updating.
+# Uses:
+    # $s0: draw_entity and macro
+    # $s1: draw_entity and macro
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity and update_player_x
+    # $t1: draw_entity and update_player_x
+    # $t3: draw_entity
+    # $v0: draw_entity
 .macro handle_keypress()
     li $s0, KEYSTROKE_ADDRESS
     lw $s1, 0($s0)
@@ -580,7 +590,6 @@ _draw_entities_end:
     print_str(newline)
 
     beq $s1, ASCII_W, _w_pressed
-    beq $s1, ASCII_S, _s_pressed
     beq $s1, ASCII_A, _a_pressed
     beq $s1, ASCII_D, _d_pressed
     beq $s1, ASCII_R, _r_pressed
@@ -589,12 +598,20 @@ _draw_entities_end:
 
 _w_pressed:
     j _handle_keypress_end
-_s_pressed:
-    j _handle_keypress_end
 _a_pressed:
+    # Clear the pixels in the original player position
+    load_word(player_x, $a0)
+    load_word(player_y, $a1)
+    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_BACKGROUND)
+
     update_player_x(-PLAYER_DELTA_X)
     j _handle_keypress_end
 _d_pressed:
+    # Clear the pixels in the original player position
+    load_word(player_x, $a0)
+    load_word(player_y, $a1)
+    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_BACKGROUND)
+
     update_player_x(PLAYER_DELTA_X)
     j _handle_keypress_end
 _r_pressed:
@@ -625,11 +642,16 @@ initialize:     # jump here on restart
 
 game_loop:
 
+    handle_keypress()
+
+    # If collision detection goes wrong, handle_keypress could colour over an enemy or platform, so we do that first
+    draw_enemies()
+    draw_platforms()
+
     load_word(player_x, $a0)
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    handle_keypress()
     sleep()
 
     j game_loop
