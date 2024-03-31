@@ -84,7 +84,10 @@
 
 # Movement
 .eqv SLEEP_DURATION 40              # sleep duration in milliseconds (TODO: set to higher value when debugging)
-.eqv PLAYER_DELTA_X 2               # x-value increment for each keypress
+.eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
+# Bounds to prevent player from going off-screen
+.eqv PLAYER_MIN_X 0
+.eqv PLAYER_MAX_X 61
 
 .eqv NUM_PLATFORMS 5
 .eqv NUM_ENEMIES 3
@@ -562,7 +565,14 @@ _draw_entities_end:
 .macro update_player_x(%delta_x)
     load_word(player_x, $t1)
     addi $t1, $t1, %delta_x
-    store_word(player_x, $t1)
+
+    # Prevent player from going out of bounds
+    blt $t1, PLAYER_MIN_X, _update_player_x_end
+    bgt $t1, PLAYER_MAX_X, _update_player_x_end
+
+    store_word(player_x, $t1)   # update if in bounds
+
+_update_player_x_end:
 .end_macro
 
 
