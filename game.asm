@@ -39,6 +39,7 @@
 
 .eqv DISPLAY_BASE_ADDRESS 0x10008000    # $gp
 .eqv DISPLAY_END_ADDRESS 0x1000bffc     # Bottom-right unit's address
+.eqv KEYSTROKE_ADDRESS 0xffff0000
 
 # Dimensions in number of units (not pixels)
 # Note: on my screen, each unit is 5 pixels in the MIPS Bitmap Display as the display is 320x320 instead of 256x256
@@ -245,13 +246,11 @@ _colour_unit_end:
 # Uses:
     # $t0: colour_unit_reg
     # $s0
-    # $s1
 .macro fill_background(%colour)
     li $s0, DISPLAY_BASE_ADDRESS
-    li $s1, DISPLAY_END_ADDRESS
 
 _fill_background_loop:
-    bgt $s0, $s1, _fill_background_loop_end     # while the last unit is not reached
+    bgt $s0, DISPLAY_END_ADDRESS, _fill_background_loop_end     # while the last unit is not reached
     colour_unit_reg($s0, %colour)
     add $s0, $s0, 4                             # next unit is sizeof(word) ahead
     j _fill_background_loop
@@ -495,11 +494,22 @@ _draw_entities_end:
 
 #################### GAME ####################
 
+.macro handle_keypress()
+    li $t0, KEYSTROKE_ADDRESS
+    lw $t1, 0($t0)
+    bne $t1, 1, _handle_keypress_end
+
+    lw $t1, 4($t0)  # ASCII value of key pressed
+
+_handle_keypress_end:
+.end_macro
+
 main:
     fill_background(COLOUR_BACKGROUND)
     initialize_enemies()
     draw_enemies()
     # TODO: handle enemy collision with platform (e.g. draw platform on top of enemy)
+
     initialize_platforms()
     draw_platforms()
 
