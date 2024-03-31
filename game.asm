@@ -48,33 +48,49 @@
 
 .eqv PLAYER_WIDTH 3
 .eqv PLAYER_HEIGHT 3
+# Player's initial top-left unit position
 .eqv PLAYER_INITIAL_X 2
 .eqv PLAYER_INITIAL_Y 29
 
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
-# Bounds on the x and y-values for platforms to be randomly generated with
+# Platform spawn position ranges for the top-left unit
 .eqv PLATFORM_MIN_X 0
 .eqv PLATFORM_MAX_X 52
 # TODO: adjust y-range so it is never impossible to jump onto one (height-wise)
 .eqv PLATFORM_MIN_Y 0
 .eqv PLATFORM_MAX_Y 63
 
+.eqv ENEMY_WIDTH 2
+.eqv ENEMY_HEIGHT 2
+# Enemy spawn position ranges for the top-left unit
+.eqv ENEMY_MIN_X 40
+.eqv ENEMY_MAX_X 61
+# TODO: adjust these so enemies aren't redundant because they're out of reach vertically
+.eqv ENEMY_MIN_Y 0
+.eqv ENEMY_MAX_Y 61
+
 # Colours
-.eqv COLOUR_BACKGROUND 0x000000     # Black
-.eqv COLOUR_PLATFORM 0x964B00       # Brown
-.eqv COLOUR_PLAYER 0xFF0000         # Red
+.eqv COLOUR_BACKGROUND 0x000000     # black
+.eqv COLOUR_PLATFORM 0x964B00       # brown
+.eqv COLOUR_PLAYER 0x0000FF         # blue
+.eqv COLOUR_ENEMY 0xFF0000          # red
 
 .eqv NUM_PLATFORMS 5
+.eqv NUM_ENEMIES 3
 
 .data
 
 player_x: .word PLAYER_INITIAL_X
 player_y: .word PLAYER_INITIAL_Y
 
-# Coordinates of the platforms
+# Coordinates of each platform's top-left unit
 platforms_x: .word 0:NUM_PLATFORMS
 platforms_y: .word 0:NUM_PLATFORMS
+
+# Coordinates of each enemy's top-left unit
+enemies_x: .word 0:NUM_ENEMIES
+enemies_y: .word 0:NUM_ENEMIES
 
 .text
 
@@ -287,7 +303,15 @@ _draw_entity_end:
 
 #################### ENTITIES ####################
 
-# Randomly generates x and y-values for all platforms, storing them in platform_x and platform_y (respectively).
+# Randomly generates x and y-values for all enemies based on the given ranges, storing them in the given arrays.
+# Parameters:
+    # %entities_x: the array of x-values
+    # %entities_y: the array of y-values
+    # %num_entities: the number of entities (an immediate value)
+    # %min_x: minimum possible x-value
+    # %max_x: maximum possible x-value
+    # %min_y: minimum possible y-value
+    # %max_y: maximum possible y-value
 # Uses:
     # $t0
     # $t1
@@ -300,44 +324,42 @@ _draw_entity_end:
     # $a0: random_integer
     # $a1: random_integer
     # $v0: random_integer
-.macro initialize_platforms()
-    la $t0, platforms_x
-    la $t1, platforms_y
+.macro initialize_entities(%entities_x, %entities_y, %num_entities, %min_x, %max_x, %min_y, %max_y)
+    la $t0, %entities_x
+    la $t1, %entities_y
     add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
-    li $t3, NUM_PLATFORMS
-    sll $t3, $t3, 2         # $t3 = NUM_PLATFORMS * sizeof(word)
+    li $t3, %num_entities
+    sll $t3, $t3, 2         # $t3 = %num_entities * sizeof(word)
 
-    add $t4, $t0, $t2           # $t4 = addr(platforms_x[0])
-    add $t5, $t1, $t2           # $t5 = addr(platforms_y[0])
-    li $t6, PLAYER_INITIAL_X
-    li $t7, PLAYER_INITIAL_Y
-    addi $t7, $t7, PLAYER_HEIGHT
-    # Place the first platform right below the player's initial position
-    sw $t6, 0($t4)
-    sw $t7, 0($t5)
-    addi $t2, $t2, 4
-
-_initialize_platforms_loop:                             # $t2 = array offset
-    bge $t2, $t3, _initialize_platforms_loop_end        # while i < NUM_PLATFORMS
+_initialize_entities_loop:                  # $t2 = array offset
+    bge $t2, $t3, _initialize_entities_end  # while i < %num_entities
     add $t4, $t0, $t2
     add $t5, $t1, $t2
 
     # Randomly generate coordinates in the valid range and store them
-    random_integer(PLATFORM_MIN_X, PLATFORM_MAX_X)
+    random_integer(%min_x, %max_x)
     move $t6, $v0
-    random_integer(PLATFORM_MIN_Y, PLATFORM_MAX_Y)
+    random_integer(%min_y, %max_y)
     move $t7, $v0
-    sw $t6, 0($t4)                                  # platforms_x[i] = random x-value
-    sw $t7, 0($t5)                                  # platforms_y[i] = random y-value
+    sw $t6, 0($t4)  # %entities_x[i] = random x-value
+    sw $t7, 0($t5)  # %entities_y[i] = random y-value
 
     addi $t2, $t2, 4
-    j _initialize_platforms_loop
+    j _initialize_entities_loop
 
-_initialize_platforms_loop_end:
+_initialize_entities_end:
 .end_macro
 
 # TODO: save $s0 - $s6 in stack if this is called elsewhere that uses those registers
-# Draws all the platforms based on their coordinates stored in platforms_x and platforms_y.
+# Draws all the entities based on their coordinates stored in the given arrays, their given dimensions, and the colour
+# specified.
+# Parameters:
+    # %entities_x: array of x-values
+    # %entities_y: array of y-values
+    # %num_entities: number of entities (an immediate value)
+    # %entity_width: width of each entity (an immediate value)
+    # %entity_height: height of each entity (an immediate value)
+    # %entity_colour: colour of each entity (an immediate value)
 # Uses:
     # $t4
     # $t5
@@ -353,27 +375,121 @@ _initialize_platforms_loop_end:
     # $t2: draw_entity
     # $t3: draw_entity
     # $v0: draw_entity
-.macro draw_platforms()
-    la $t8, platforms_x
-    la $t9, platforms_y
+.macro draw_entities(%entities_x, %entities_y, %num_entities, %entity_width, %entity_height, %entity_colour)
+    la $t8, %entities_x
+    la $t9, %entities_y
     add $t4, $zero, $zero   # $t4 = array offset = sizeof(word) * i (for the index i)
-    li $t5, NUM_PLATFORMS
-    sll $t5, $t5, 2         # $t5 = NUM_PLATFORMS * sizeof(word)
+    li $t5, %num_entities
+    sll $t5, $t5, 2         # $t5 = %num_entities * sizeof(word)
 
-_draw_platforms_loop:
-    bge $t4, $t5, _draw_platforms_loop_end        # while i < NUM_PLATFORMS
+_draw_entities_loop:
+    bge $t4, $t5, _draw_entities_end        # while i < %num_entities
 
-    lw $t6, 0($t8)  # $t8 = platforms_x[i]
-    lw $t7, 0($t9)  # $t9 = platforms_y[i]
+    lw $t6, 0($t8)  # $t8 = entities_x[i]
+    lw $t7, 0($t9)  # $t9 = entities_y[i]
 
-    draw_entity($t6, $t7, PLATFORM_WIDTH, PLATFORM_THICKNESS, COLOUR_PLATFORM)
+    draw_entity($t6, $t7, %entity_width, %entity_height, %entity_colour)
 
     addi $t4, $t4, 4
     addi $t8, $t8, 4
     addi $t9, $t9, 4
-    j _draw_platforms_loop
+    j _draw_entities_loop
 
-_draw_platforms_loop_end:
+_draw_entities_end:
+.end_macro
+
+# Randomly generates x and y-values for all platforms except the first, storing them in platform_x and platform_y
+# (respectively). The first platform is placed directly below the player's initial position.
+# Uses:
+    # $t0: initialize_entities and macro
+    # $t1: initialize_entities and macro
+    # $t2: initialize_entities and macro
+    # $t3: initialize_entities and macro
+    # $t4: initialize_entities and macro
+    # $t5: initialize_entities and macro
+    # $t6: initialize_entities and macro
+    # $t7: initialize_entities and macro
+    # $a0: initialize_entities
+    # $a1: initialize_entities
+    # $v0: initialize_entities
+.macro initialize_platforms()
+    initialize_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_MIN_X, PLATFORM_MAX_X, PLATFORM_MIN_Y, PLATFORM_MAX_Y)
+
+    # Overwrite first platform so it's placed below the player
+    la $t0, platforms_x
+    la $t1, platforms_y
+    add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
+    li $t3, NUM_PLATFORMS
+    sll $t3, $t3, 2         # $t3 = NUM_PLATFORMS * sizeof(word)
+
+    add $t4, $t0, $t2           # $t4 = addr(platforms_x[0])
+    add $t5, $t1, $t2           # $t5 = addr(platforms_y[0])
+    li $t6, PLAYER_INITIAL_X
+    li $t7, PLAYER_INITIAL_Y
+    addi $t7, $t7, PLAYER_HEIGHT
+
+    sw $t6, 0($t4)
+    sw $t7, 0($t5)
+.end_macro
+
+# Randomly generated x and y-values for all enemies, storing them in enemies_x and enemies_y (respectively). Wraps
+# initialize_entities specifically for initializing enemies.
+# Uses:
+    # $t0: initialize_entities
+    # $t1: initialize_entities
+    # $t2: initialize_entities
+    # $t3: initialize_entities
+    # $t4: initialize_entities
+    # $t5: initialize_entities
+    # $t6: initialize_entities
+    # $t7: initialize_entities
+    # $a0: initialize_entities
+    # $a1: initialize_entities
+    # $v0: initialize_entities
+.macro initialize_enemies()
+    initialize_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_MIN_X, ENEMY_MAX_X, ENEMY_MIN_Y, ENEMY_MAX_Y)
+.end_macro
+
+# Draws all the platforms based on their coordinates stored in platforms_x and platforms_y. Wraps draw_entities
+# specifically for drawing platforms.
+# Uses:
+    # $t4: draw_entities
+    # $t5: draw_entities
+    # $t6: draw_entities
+    # $t7: draw_entities
+    # $t8: draw_entities
+    # $t9: draw_entities
+    # $s0: draw_entities
+    # $s1: draw_entities
+    # $s2: draw_entities
+    # $s3: draw_entities
+    # $t0: draw_entities
+    # $t2: draw_entities
+    # $t3: draw_entities
+    # $v0: draw_entities
+.macro draw_platforms()
+    draw_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_WIDTH, PLATFORM_THICKNESS, COLOUR_PLATFORM)
+.end_macro
+
+# Draws all the enemies based on their coordinates stored in enemies_x and enemies_y. Wraps draw_entities specifically
+# for drawing enemies.
+# Uses:
+    # $t4: draw_entities
+    # $t5: draw_entities
+    # $t6: draw_entities
+    # $t7: draw_entities
+    # $t8: draw_entities
+    # $t9: draw_entities
+    # $s0: draw_entities
+    # $s1: draw_entities
+    # $s2: draw_entities
+    # $s3: draw_entities
+    # $t0: draw_entities
+    # $t2: draw_entities
+    # $t3: draw_entities
+    # $v0: draw_entities
+.macro draw_enemies()
+    draw_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_WIDTH, ENEMY_HEIGHT, COLOUR_ENEMY)
 .end_macro
 
 
@@ -381,6 +497,9 @@ _draw_platforms_loop_end:
 
 main:
     fill_background(COLOUR_BACKGROUND)
+    initialize_enemies()
+    draw_enemies()
+    # TODO: handle enemy collision with platform (e.g. draw platform on top of enemy)
     initialize_platforms()
     draw_platforms()
 
