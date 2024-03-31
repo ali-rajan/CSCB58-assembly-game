@@ -3,14 +3,14 @@
 ## Setup
 
 ```
-platforms = []
-enemies = []
+platforms_x = []
+platforms_y = []
+enemies_x = []
+enemies_y = []
 
-initialize_entities():
-  initialize_platforms()
-  initialize_player()
-  initialize_enemies()
-  game_run = true
+initialize_platforms()
+initialize_player()
+initialize_enemies()
 ```
 
 ## Entity Movement
@@ -33,11 +33,6 @@ update_enemies():
 
 # TODO: player movement logic
 update_player()
-
-update_entities():
-  update_platforms()
-  update_enemies()
-  update_player()
 ```
 
 ## Event Handlers
@@ -48,7 +43,7 @@ handle_keypress():
   if key == "q"
       game_run = false
   else if key == "r"
-    jump to initialize() (before the main loop)
+    jump to the initialize stage (before the main loop)
   else if key == "w":
     player_jump()
   else if key == "a":
@@ -61,23 +56,34 @@ is_game_over():
     return true
   else if player.hp <= 0:
     return true
+  else:
+    return false
 
 is_game_won():
   if enemies_evaded >= evasion_target:
     return true
+  else:
+    return false
 ```
 
 ## Main Loop
 
 ```
-initialize_entities()
+initialize_enemies()
+initialize_platforms()
 while game_run:
-  handle_keypress()
-  update_entities()
-
   # TODO: collison logic
-  if is_game_over():
+  if game_over():
     display game over screen
   else if game_won():
     display game won screen
+
+  draw_player()
+  draw_enemies()
+  draw_platforms()
+
+  handle_keypress()
+  update_player()
+  update_platforms()
+  update_enemies()
 ```
