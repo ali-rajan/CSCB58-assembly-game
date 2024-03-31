@@ -8,9 +8,16 @@ platforms_y = []
 enemies_x = []
 enemies_y = []
 
-initialize_platforms()
-initialize_player()
-initialize_enemies()
+initialize_entities(entities_x, entities_y, num_entities, min_x, max_x, min_y, max_y)
+  for i in 0, ..., num_entities:
+    entities_x[i] = random x value in range
+    entities_y[i] = random y value in range
+
+initialize_platforms():
+  wraps initialize_entities
+
+initialize_enemies():
+  wraps initialize_entities
 ```
 
 ## Entity Movement
