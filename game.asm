@@ -45,8 +45,6 @@
 # (measured using a screen ruler)
 .eqv DISPLAY_WIDTH 64
 .eqv DISPLAY_HEIGHT 64
-.eqv DISPLAY_RIGHT 63   # DISPLAY_WIDTH - 1
-.eqv DISPLAY_BOTTOM 63  # DISPLAY_HEIGHT - 1
 
 .eqv PLAYER_WIDTH 3
 .eqv PLAYER_HEIGHT 3
@@ -58,6 +56,7 @@
 # Bounds on the x and y-values for platforms to be randomly generated with
 .eqv PLATFORM_MIN_X 0
 .eqv PLATFORM_MAX_X 52
+# TODO: adjust y-range so it is never impossible to jump onto one (height-wise)
 .eqv PLATFORM_MIN_Y 0
 .eqv PLATFORM_MAX_Y 63
 
@@ -133,7 +132,7 @@ j main
     # $t2
     # $t3
     # $v0
-.macro unit_address(%x, %y)
+.macro unit_address(%x, %y)     # TOOD: remove if unused
     li $t0, %x
     li $t1, %y
     li $t2, DISPLAY_WIDTH
@@ -153,8 +152,6 @@ j main
 # Returns:
     # $v0: the framebuffer address of (x, y)
 # Uses:
-    # %x_reg
-    # %y_reg
     # $t2
     # $t3
     # $v0
@@ -169,27 +166,69 @@ j main
     add $v0, $v0, $t3       # $v0 = offset + DISPLAY_BASE_ADDRESS
 .end_macro
 
+# Returns 1 if the given unit is on-screen and 0 otherwise.
+# Parameters:
+    # %x_reg: register storing the unit's x-value
+    # %y_reg: register storing the unit's y-value
+# Returns:
+    # $v0: 1 if the unit is on-screen, 0 otherwise
+# Uses:
+    # $t0
+    # $v0
+.macro unit_is_on_screen(%x_reg, %y_reg)
+    add $v0, $zero, $zero   # return value (changed if unit is on-screen)
+
+    # Check if 0 <= x < DISPLAY_WIDTH
+    blt %x_reg, $zero, _unit_is_on_screen_end
+    li $t0, DISPLAY_WIDTH
+    bge %x_reg, $t0, _unit_is_on_screen_end
+
+    # Check if 0 <= y < DISPLAY_HEIGHT
+    blt %y_reg, $zero, _unit_is_on_screen_end
+    li $t0, DISPLAY_HEIGHT
+    bge %y_reg, $t0, _unit_is_on_screen_end
+
+    li $v0, 1   # return 1 if unit is on-screen
+_unit_is_on_screen_end:
+.end_macro
+
 
 #################### DRAWING ####################
 
-# Colours the given unit with the given colour.
+# Fills the given unit with the given colour. Does not check if the unit address given is valid.
 # Parameters:
-    # %addr_reg: register storing the address of the unit to colour
+    # %unit_reg: register storing the address of the unit to colour
     # %colour: colour (immediate value)
 # Uses:
-#   %addr_reg
-#   $t0
-.macro colour_unit(%addr_reg, %colour)
+    # $t0
+.macro colour_unit_reg(%unit_reg, %colour)
     li $t0, %colour
-    sw $t0, 0(%addr_reg)
+    sw $t0, 0(%unit_reg)
+.end_macro
+
+# Fills the given unit with the given colour if the unit address given is valid. No effect otherwise.
+# Uses:
+    # $t0: unit_is_on_screen and macro
+    # $t2: unit_address_reg
+    # $t3: unit_address_reg
+    # $v0: unit_is_on_screen and unit_address_reg
+.macro colour_unit(%x_reg, %y_reg, %colour)
+    unit_is_on_screen(%x_reg, %y_reg)
+    beq $v0, $zero, _colour_unit_end    # do not colour unit if it's off-screen
+
+    li $t0, %colour
+    unit_address_reg(%x_reg, %y_reg)
+    sw $t0, 0($v0)
+
+_colour_unit_end:
 .end_macro
 
 # Fills the screen with the given colour.
 # Parameters:
     # %colour: colour (immediate value)
 # Uses:
-    # $t0: colour_unit calls
-    # $s0: colour_unit calls and macro
+    # $t0: colour_unit_reg
+    # $s0
     # $s1
 .macro fill_background(%colour)
     li $s0, DISPLAY_BASE_ADDRESS
@@ -197,7 +236,7 @@ j main
 
 _fill_background_loop:
     bgt $s0, $s1, _fill_background_loop_end     # while the last unit is not reached
-    colour_unit($s0, %colour)
+    colour_unit_reg($s0, %colour)
     add $s0, $s0, 4                             # next unit is sizeof(word) ahead
     j _fill_background_loop
 
@@ -212,62 +251,41 @@ _fill_background_loop_end:
     # %height: the rectangle's height in units
     # %colour: the rectangle's colour (an immediate value)
 # Uses:
-    # %x_reg: unit_address_reg calls
-    # %y_reg: unit_address_reg calls
-    # $t0: colour_unit calls
-    # $t2: unit_address_reg calls
-    # $t3: unit_address_reg calls
-    # $v0: unit_address_reg calls
     # $s0
     # $s1
     # $s2
     # $s3
-    # $s4
-    # $s5
-    # $s6
+    # $t0: colour_unit
+    # $t2: colour_unit
+    # $t3: colour_unit
+    # $v0: colour_unit
 .macro draw_entity(%x_reg, %y_reg, %width, %height, %colour)
-    unit_address_reg(%x_reg, %y_reg)
-    move $s0, $v0   # $s0 = unit_address(start_x, start_y)
+    move $s0, %x_reg    # $s0 = current x
+    move $s1, %y_reg    # $s1 = current y
 
-    add $s1, %x_reg, %width     # $s1 = end_x (inclusive)
-    add $s2, %y_reg, %height
-    addi $s2, $s2, -1           # $s2 = end_y (inclusive)
-    unit_address_reg($s1, $s2)
-    move $s3, $v0   # $s3 = unit_address(end_x, end_y)
+    add $s2, %x_reg, %width     # $s2 = end_x (exclusive)
+    add $s3, %y_reg, %height    # $s3 = end_x (exclusive)
 
-    add $s4, %x_reg, %width     # $s4 = row_end_x
-    move $s5, %y_reg            # $s5 = row_end_y
-    unit_address_reg($s4, $s5)
-    move $s6, $v0   # $s6 = addr(row end unit)
+_draw_for_each_y:
+    bge $s1, $s3, _draw_entity_end          # while the last row is not reached
 
-_draw_entity_loop:
-    # $s0 stores addr(current unit)
-    # %x_reg and %y_reg store the current row's start posiiton
-    # $s4 stores the current row's end x-value
-    bge		$s0, $s3, _draw_entity_loop_end         # while the last unit is not reached
+    _draw_for_each_x:
+        bge $s0, $s2, _for_each_x_end       # while the last unit in the row is not reached
+        colour_unit($s0, $s1, %colour)
+        addi $s0, $s0, 1
+        j _draw_for_each_x
 
-    _draw_entity_row_loop:
-        bge $s0, $s6, _draw_entity_row_loop_end     # while the last unit in the row is not reached
-        colour_unit($s0, %colour)
-        add $s0, $s0, 4                             # next unit is sizeof(word) ahead
-        j _draw_entity_row_loop
+    _for_each_x_end:
+        move $s0, %x_reg
+        addi $s1, $s1, 1
 
-    _draw_entity_row_loop_end:
-        # Move to the next row
-        addi %y_reg, %y_reg, 1
-        unit_address_reg(%x_reg, %y_reg)
-        move $s0, $v0
-        # Update the row end position
-        unit_address_reg($s4, %y_reg)
-        move $s6, $v0
+    j _draw_for_each_y
 
-    j _draw_entity_loop
-
-_draw_entity_loop_end:
+_draw_entity_end:
 .end_macro
 
 
-#################### SPRITES ####################
+#################### ENTITIES ####################
 
 # Randomly generates x and y-values for all platforms, storing them in platform_x and platform_y (respectively).
 # Uses:
@@ -279,9 +297,9 @@ _draw_entity_loop_end:
     # $t5
     # $t6
     # $t7
-    # $v0: random_integer call
-    # $a0: random_integer call
-    # $a1: random_integer call
+    # $a0: random_integer
+    # $a1: random_integer
+    # $v0: random_integer
 .macro initialize_platforms()
     la $t0, platforms_x
     la $t1, platforms_y
@@ -321,23 +339,20 @@ _initialize_platforms_loop_end:
 # TODO: save $s0 - $s6 in stack if this is called elsewhere that uses those registers
 # Draws all the platforms based on their coordinates stored in platforms_x and platforms_y.
 # Uses:
-    # $t0: draw_entity > colour_unit calls
-    # $t2: draw_entity > unit_address_reg calls
-    # $t3: draw_entity > unit_address_reg calls
     # $t4
     # $t5
     # $t6
     # $t7
     # $t8
     # $t9
-    # $v0: draw_entity > unit_address_reg calls
-    # $s0: draw_entity calls
-    # $s1: draw_entity calls
-    # $s2: draw_entity calls
-    # $s3: draw_entity calls
-    # $s4: draw_entity calls
-    # $s5: draw_entity calls
-    # $s6: draw_entity calls
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $v0: draw_entity
 .macro draw_platforms()
     la $t8, platforms_x
     la $t9, platforms_y
@@ -373,9 +388,6 @@ main:
     load_word(player_y, $a1)
 
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
-
-    # TODO: make platforms randomly spawn to the right and only draw pixels on screen
-
 
     # Exit
     li $v0, 10
