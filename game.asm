@@ -48,6 +48,10 @@
 .eqv DISPLAY_HEIGHT 64
 .eqv PLAYER_WIDTH 3
 .eqv PLAYER_HEIGHT 3
+# Dimensions of the area to fill with the background colour when moving the player in the x and y directions
+.eqv PLAYER_X_CLEAR_WIDTH 1
+.eqv PLAYER_X_CLEAR_HEIGHT 3
+
 # Player's initial top-left unit position
 .eqv PLAYER_INITIAL_X 2
 .eqv PLAYER_INITIAL_Y 29
@@ -609,7 +613,7 @@ _update_player_x_end:
 _w_pressed:
     j _handle_keypress_end
 _a_pressed:
-    # Clear the pixels in the original player position
+    # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_BACKGROUND)
@@ -617,10 +621,10 @@ _a_pressed:
     update_player_x(-PLAYER_DELTA_X)
     j _handle_keypress_end
 _d_pressed:
-    # Clear the pixels in the original player position
+    # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
-    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_BACKGROUND)
+    draw_entity($a0, $a1, PLAYER_X_CLEAR_WIDTH, PLAYER_X_CLEAR_HEIGHT, COLOUR_BACKGROUND)
 
     update_player_x(PLAYER_DELTA_X)
     j _handle_keypress_end
