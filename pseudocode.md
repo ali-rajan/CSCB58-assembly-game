@@ -5,6 +5,7 @@
 ```
 player_x = current x-value
 player_y = current y-value
+player_y_velocity = current vertical velocity
 platforms_x = []
 platforms_y = []
 enemies_x = []
@@ -43,12 +44,19 @@ update_enemies():
 player_collisions():
   # TODO!!
   for each platform:
+    entity_collision(player, platform)
     if platform collides below player:
-    else if platform collides left of player:
-      player_platform_left_collision = true
-    else if platform collides right of player:
-      player_platform_right_collision = true
+      if player_y_velocity is downward:
+        position player above platform
+        set player_y_velocity to neutral
     else if platform collides above player:
+      if player_y_velocity is upward:
+        position player below platform
+        set player_y_velocity downward
+    else if platform collides left of player:
+      position player right of platform
+    else if platform collides right of player:
+      position player left of platform
 
 # TODO: player movement logic
 update_player()
