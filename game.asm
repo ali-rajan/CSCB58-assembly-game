@@ -89,8 +89,12 @@
 # Bounds to prevent player from going off-screen
 .eqv PLAYER_MIN_X 0
 .eqv PLAYER_MAX_X 61
-# Dimensions of the area to fill with the background colour when moving the player in the x and y directions
-# NOTE: these depend on the position increment values
+
+.eqv COLLISION_NONE 100000
+.eqv COLLISION_TOP 100001
+.eqv COLLISION_BOTTOM 100002
+.eqv COLLISION_LEFT 100003
+.eqv COLLISION_RIGHT 100004
 
 .eqv NUM_PLATFORMS 5
 .eqv NUM_ENEMIES 3
@@ -110,6 +114,8 @@ enemies_y: .word 0:NUM_ENEMIES
 
 # Debug text
 keypress_text_debug: .asciiz "key pressed: "
+collision_top_debug: .asciiz "top collision\n"
+collision_bottom_debug: .asciiz "bottom collision\n"
 newline: .asciiz "\n"
 
 .text
@@ -120,6 +126,8 @@ j main
 
 
 #################### UTILITIES ####################
+
+# TODO: remove print macros once done debugging
 
 # Prints the given string.
 # Parameters:
@@ -141,6 +149,18 @@ j main
     # $a0
 .macro print_char(%reg)
     li $v0, 11
+    move $a0, %reg
+    syscall
+.end_macro
+
+# Prints the given register's integer value.
+# Parameters:
+    # %reg: register storing the integer
+# Uses:
+    # $v0
+    # $a0
+.macro print_int(%reg)
+    li $v0, 1
     move $a0, %reg
     syscall
 .end_macro
@@ -464,7 +484,7 @@ _draw_entities_loop:
 _draw_entities_end:
 .end_macro
 
-# Randomly generates x and y-values for all platforms except the first, storing them in platform_x and platform_y
+# Randomly generates x and y-values for all platforms except the first, storing them in platforms_x and platforms_y
 # (respectively). The first platform is placed directly below the player's initial position.
 # Uses:
     # $t0: initialize_entities and macro
@@ -580,6 +600,62 @@ _draw_entities_end:
 _update_player_x_end:
 .end_macro
 
+# Detects whether there is a collision between the player and the given entity, and if so, which direction from the
+# player the collision is in.
+# Returns:
+    # $v0: COLLISION_NONE, COLLISION_TOP, COLLISION_BOTTOM, COLLISION_LEFT, or COLLISION_RIGHT
+# Uses:
+    # $t0
+    # $t1
+    # $t2
+    # $t3
+    # $t4
+    # $t5
+    # $v0
+.macro entity_collision(%x_reg, %y_reg, %width, %height)
+    # Load player's perimeter x and y-values
+    # TODO: check for off-by-one errors
+    load_word(player_x, $t0)
+    load_word(player_y, $t1)
+    addi $t2, $t0, PLAYER_WIDTH
+    addi $t2, $t2, 1
+    # subi $t2, $t2, 1
+    addi $t3, $t1, PLAYER_HEIGHT
+    # subi $t3, $t3, 1
+    # Load other entity's perimeter x and y-values
+    addi $t4, %x_reg, %width
+    addi $t4, $t4, 1
+    # subi $t4, $t4, 1
+    addi $t5, %y_reg, %height
+    # subi $t5, $t5, 1
+
+    #               left x (inclusive)  right x (exclusive) top y (inclusive)   bottom y (exclusive)
+    # Player        $t0                 $t2                 $t1                 $t3
+    # Other entity  %x_reg              $t4                 %y_reg              $t5
+
+    # Check if entity collides with player
+    li $v0, COLLISION_NONE  # return value
+    blt $t2, %x_reg, _entity_collision_end
+    blt $t4, $t0, _entity_collision_end
+    blt $t3, %y_reg, _entity_collision_end
+    blt $t5, $t1, _entity_collision_end
+
+    # Determine collision direction relative to player
+    bgt $t3, %y_reg, _no_bottom_collision
+    li $v0, COLLISION_BOTTOM
+    j _entity_collision_end
+
+_no_bottom_collision:
+    bgt $t5, $t1, _no_top_collision
+    li $v0, COLLISION_TOP
+    j _entity_collision_end
+
+_no_top_collision:
+    # TODO: add horizontal collision logic here
+
+_entity_collision_end:
+.end_macro
+
 
 #################### GAME ####################
 
@@ -601,8 +677,8 @@ _update_player_x_end:
 
     lw $s1, 4($s0)  # ASCII value of key pressed
     # TODO: remove once done debugging
-    print_char($s1)
-    print_str(newline)
+    # print_char($s1)
+    # print_str(newline)
 
     beq $s1, ASCII_W, _w_pressed
     beq $s1, ASCII_A, _a_pressed
@@ -658,6 +734,9 @@ initialize:     # jump here on restart
     draw_enemies()
     draw_platforms()
 
+    load_word(platforms_x, $a2)
+    load_word(platforms_y, $a3)
+
 game_loop:
 
     handle_keypress()
@@ -670,8 +749,20 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    sleep()
+    entity_collision($a2, $a3, PLATFORM_WIDTH, PLATFORM_THICKNESS)
+    beq $v0, COLLISION_TOP, _top_collision
+    beq $v0, COLLISION_BOTTOM, _bottom_collision
+    j _no_collision
 
+_top_collision:
+    print_str(collision_top_debug)
+
+_bottom_collision:
+    print_str(collision_bottom_debug)
+
+_no_collision:
+
+    sleep()
     j game_loop
 
 quit:
