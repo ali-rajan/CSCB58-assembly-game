@@ -5,6 +5,7 @@
 ```
 player_x = current x-value
 player_y = current y-value
+player_y_velocity = current vertical velocity
 platforms_x = []
 platforms_y = []
 enemies_x = []
@@ -42,13 +43,28 @@ update_enemies():
 
 player_collisions():
   # TODO!!
-  for each platform:
-    if platform collides below player:
-    else if platform collides left of player:
-      player_platform_left_collision = true
-    else if platform collides right of player:
-      player_platform_right_collision = true
-    else if platform collides above player:
+  for each pixel on player's left perimeter:
+    if pixel belongs to a platform:
+      set player right of platform
+    else if pixel belongs to an enemy:
+      # TODO: handle enemy collision
+  for each pixel on player's right perimeter:
+    # Symmetric case
+
+  for each pixel on player's bottom perimeter:
+    if pixel belongs to a platform:
+      set player above platform
+      if player_y_velocity is downward:
+        set player_y_velocity to neutral
+    else if pixel belongs to an enemy:
+      # Handle enemy collision
+  for each pixel on player's top perimeter:
+    if pixel belongs to a platform:
+      set player below platform
+      if player_y_velocity is upward:
+        set player_y_velocity to downward
+    else if pixel belongs to an enemy:
+      # Handle enemy collision
 
 # TODO: player movement logic
 update_player()
