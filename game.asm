@@ -617,6 +617,7 @@ _a_pressed:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
+    # Add offset needed due to left movement
     addi $a0, $a0, PLAYER_WIDTH
     subi $a0, $a0, PLAYER_DELTA_X
     draw_entity($a0, $a1, PLAYER_DELTA_X, PLAYER_HEIGHT, COLOUR_BACKGROUND)
