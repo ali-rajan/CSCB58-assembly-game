@@ -48,9 +48,6 @@
 .eqv DISPLAY_HEIGHT 64
 .eqv PLAYER_WIDTH 3
 .eqv PLAYER_HEIGHT 3
-# Dimensions of the area to fill with the background colour when moving the player in the x and y directions
-.eqv PLAYER_X_CLEAR_WIDTH 1
-.eqv PLAYER_X_CLEAR_HEIGHT 3
 
 # Player's initial top-left unit position
 .eqv PLAYER_INITIAL_X 2
@@ -88,10 +85,12 @@
 
 # Movement
 .eqv SLEEP_DURATION 40              # sleep duration in milliseconds (TODO: set to higher value when debugging)
-.eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
+.eqv PLAYER_DELTA_X 2               # x-value increment for each keypress
 # Bounds to prevent player from going off-screen
 .eqv PLAYER_MIN_X 0
 .eqv PLAYER_MAX_X 61
+# Dimensions of the area to fill with the background colour when moving the player in the x and y directions
+# NOTE: these depend on the position increment values
 
 .eqv NUM_PLATFORMS 5
 .eqv NUM_ENEMIES 3
@@ -390,6 +389,8 @@ _draw_entity_end:
     # $a1: random_integer
     # $v0: random_integer
 .macro initialize_entities(%entities_x, %entities_y, %num_entities, %min_x, %max_x, %min_y, %max_y)
+    # TODO: maybe separate this into a macro that randomly fills one array at a time (could be useful for platform
+    # initializing where only y-values are randomized)
     la $t0, %entities_x
     la $t1, %entities_y
     add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
@@ -477,7 +478,7 @@ _draw_entities_end:
     # $a0: initialize_entities
     # $a1: initialize_entities
     # $v0: initialize_entities
-.macro initialize_platforms()
+.macro initialize_platforms()   # TODO: it should never be possible to collide with multiple platforms horizontally
     initialize_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_MIN_X, PLATFORM_MAX_X, PLATFORM_MIN_Y, PLATFORM_MAX_Y)
 
     # Overwrite first platform so it's placed below the player
@@ -616,7 +617,9 @@ _a_pressed:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
-    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_BACKGROUND)
+    addi $a0, $a0, PLAYER_WIDTH
+    subi $a0, $a0, PLAYER_DELTA_X
+    draw_entity($a0, $a1, PLAYER_DELTA_X, PLAYER_HEIGHT, COLOUR_BACKGROUND)
 
     update_player_x(-PLAYER_DELTA_X)
     j _handle_keypress_end
@@ -624,7 +627,7 @@ _d_pressed:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
-    draw_entity($a0, $a1, PLAYER_X_CLEAR_WIDTH, PLAYER_X_CLEAR_HEIGHT, COLOUR_BACKGROUND)
+    draw_entity($a0, $a1, PLAYER_DELTA_X, PLAYER_HEIGHT, COLOUR_BACKGROUND)
 
     update_player_x(PLAYER_DELTA_X)
     j _handle_keypress_end
