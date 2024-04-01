@@ -5,7 +5,6 @@
 ```
 player_x = current x-value
 player_y = current y-value
-player_y_velocity = current vertical velocity
 platforms_x = []
 platforms_y = []
 enemies_x = []
@@ -27,14 +26,14 @@ initialize_enemies():
 
 ```
 update_platforms():
-  for each platform:
+  for platform in platforms:
     if platform is completely to the left of the screen:
       randomly generate new coordinates off screen to the right
     else:
       move_platform_left()  # TODO
 
 update_enemies():
-  for each enemy:
+  for enemy in enemies:
     if enemy is completely to the left of the screen:
       randomly generate new coordinates off screen to the right
       enemies_evaded++
@@ -43,28 +42,13 @@ update_enemies():
 
 player_collisions():
   # TODO!!
-  for each pixel on player's left perimeter:
-    if pixel belongs to a platform:
-      set player right of platform
-    else if pixel belongs to an enemy:
-      # TODO: handle enemy collision
-  for each pixel on player's right perimeter:
-    # Symmetric case
-
-  for each pixel on player's bottom perimeter:
-    if pixel belongs to a platform:
-      set player above platform
-      if player_y_velocity is downward:
-        set player_y_velocity to neutral
-    else if pixel belongs to an enemy:
-      # Handle enemy collision
-  for each pixel on player's top perimeter:
-    if pixel belongs to a platform:
-      set player below platform
-      if player_y_velocity is upward:
-        set player_y_velocity to downward
-    else if pixel belongs to an enemy:
-      # Handle enemy collision
+  for each platform:
+    if platform collides below player:
+    else if platform collides left of player:
+      player_platform_left_collision = true
+    else if platform collides right of player:
+      player_platform_right_collision = true
+    else if platform collides above player:
 
 # TODO: player movement logic
 update_player()
@@ -82,11 +66,9 @@ handle_keypress():
   else if key == "w":
     player_jump()
   else if key == "a":
-    fill current player position with background colour
-    increment player_x  # draw player after this
+    player_move_left()
   else if key == "d":
-    fill current player position with background colour
-    decerement player_x  # draw player after this
+    player_move_right()
 
 is_game_over():
   if player is below the screen:  # TODO: collision logic
@@ -115,13 +97,11 @@ while game_run:
   else if game_won():
     display game won screen
 
-  handle_keypress()
+  draw_player()
   draw_enemies()
   draw_platforms()
 
-  draw_player()
-  
-  # TODO
+  handle_keypress()
   update_player()
   update_platforms()
   update_enemies()
