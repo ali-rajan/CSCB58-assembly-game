@@ -58,8 +58,10 @@
 .eqv PLATFORM_MIN_X 0
 .eqv PLATFORM_MAX_X 52
 # TODO: adjust y-range so it is never impossible to jump onto one (height-wise)
-.eqv PLATFORM_MIN_Y 0
-.eqv PLATFORM_MAX_Y 63
+# .eqv PLATFORM_MIN_Y 0
+# .eqv PLATFORM_MAX_Y 63
+.eqv PLATFORM_MIN_Y 28
+.eqv PLATFORM_MAX_Y 28
 .eqv ENEMY_WIDTH 2
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
@@ -85,7 +87,7 @@
 
 # Movement
 .eqv SLEEP_DURATION 40              # sleep duration in milliseconds (TODO: set to higher value when debugging)
-.eqv PLAYER_DELTA_X 2               # x-value increment for each keypress
+.eqv PLAYER_DELTA_X 1               # x-value increment for each keypress   (TODO: increase later)
 # Bounds to prevent player from going off-screen
 .eqv PLAYER_MIN_X 0
 .eqv PLAYER_MAX_X 61
@@ -600,8 +602,11 @@ _draw_entities_end:
 _update_player_x_end:
 .end_macro
 
-# Detects whether there is a collision between the player and the given entity, and if so, which direction from the
-# player the collision is in.
+# Detects whether there is a collision between the player and the given entity, and if so, returns which direction from
+# the player the collision is in.
+# TODO: document collision direction checking order
+# The collision directions are checked in this order: no collision, bottom, top, left, right; the first detected
+# direction is returned.
 # Returns:
     # $v0: COLLISION_NONE, COLLISION_TOP, COLLISION_BOTTOM, COLLISION_LEFT, or COLLISION_RIGHT
 # Uses:
@@ -618,14 +623,9 @@ _update_player_x_end:
     load_word(player_x, $t0)
     load_word(player_y, $t1)
     addi $t2, $t0, PLAYER_WIDTH
-    addi $t2, $t2, 1
-    # subi $t2, $t2, 1
     addi $t3, $t1, PLAYER_HEIGHT
-    # subi $t3, $t3, 1
     # Load other entity's perimeter x and y-values
     addi $t4, %x_reg, %width
-    addi $t4, $t4, 1
-    # subi $t4, $t4, 1
     addi $t5, %y_reg, %height
     # subi $t5, $t5, 1
 
@@ -654,6 +654,58 @@ _no_top_collision:
     # TODO: add horizontal collision logic here
 
 _entity_collision_end:
+.end_macro
+
+# Handles collisions between the player and all of the platforms and enemies.
+# Uses:
+    # $s0
+    # $s1
+    # $s2
+    # $s3
+    # $s4
+    # $s5
+    # $t0: entity_collision
+    # $t1: entity_collision
+    # $t2: entity_collision
+    # $t3: entity_collision
+    # $t4: entity_collision
+    # $t5: entity_collision
+    # $v0: entity_collision
+.macro player_collisions()
+    la $s0, platforms_x
+    la $s1, platforms_y
+    add $s2, $zero, $zero   # $s2 = array offset = sizeof(word) * i (for the index i)
+    li $s3, NUM_PLATFORMS
+    sll $s3, $s3, 2         # $s3 = NUM_PLATFORMS * sizeof(word)
+
+_for_each_platform:
+    bge $s2, $s3, _platform_loop_end    # while i < NUM_PLATFORMS
+
+    lw $s4, 0($s0)  # $s0 = entities_x[i]
+    lw $s5, 0($s1)  # $s1 = entities_y[i]
+
+    entity_collision($s4, $s5, PLATFORM_WIDTH, PLATFORM_THICKNESS)
+
+    # Handle platform collision
+    beq $v0, COLLISION_TOP, _top_collision
+    beq $v0, COLLISION_BOTTOM, _bottom_collision
+    j _handle_collision_end
+
+_top_collision:
+    print_str(collision_top_debug)
+    j _handle_collision_end
+
+_bottom_collision:
+    print_str(collision_bottom_debug)
+
+_handle_collision_end:
+
+    addi $s2, $s2, 4
+    addi $s0, $s0, 4
+    addi $s1, $s1, 4
+    j _for_each_platform
+
+_platform_loop_end:
 .end_macro
 
 
@@ -734,9 +786,6 @@ initialize:     # jump here on restart
     draw_enemies()
     draw_platforms()
 
-    load_word(platforms_x, $a2)
-    load_word(platforms_y, $a3)
-
 game_loop:
 
     handle_keypress()
@@ -749,18 +798,7 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    entity_collision($a2, $a3, PLATFORM_WIDTH, PLATFORM_THICKNESS)
-    beq $v0, COLLISION_TOP, _top_collision
-    beq $v0, COLLISION_BOTTOM, _bottom_collision
-    j _no_collision
-
-_top_collision:
-    print_str(collision_top_debug)
-
-_bottom_collision:
-    print_str(collision_bottom_debug)
-
-_no_collision:
+    player_collisions()
 
     sleep()
     j game_loop
