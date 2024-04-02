@@ -107,7 +107,7 @@
 
 player_x: .word PLAYER_INITIAL_X
 player_y: .word PLAYER_INITIAL_Y
-player_y_velocity: .word 1
+player_y_velocity: .word 0
 player_jump_time: .word 0
 
 # Coordinates of each platform's top-left unit
@@ -506,7 +506,7 @@ _draw_entities_end:
     # $a0: initialize_entities
     # $a1: initialize_entities
     # $v0: initialize_entities
-.macro initialize_platforms()   # TODO: it should never be possible to collide with multiple platforms horizontally
+.macro initialize_platforms()   # TODO: it should be impossible to collide with both platforms on the left and right
     initialize_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_MIN_X, PLATFORM_MAX_X, PLATFORM_MIN_Y, PLATFORM_MAX_Y)
 
     # Overwrite first platform so it's placed below the player
@@ -610,7 +610,6 @@ _update_player_x_end:
 
 # Detects whether there is a collision between the player and the given entity, and if so, returns which direction from
 # the player the collision is in.
-# TODO: document collision direction checking order
 # The collision directions are checked in this order: no collision, bottom, top, left, right; the first detected
 # direction is returned.
 # Returns:
@@ -625,7 +624,6 @@ _update_player_x_end:
     # $v0
 .macro entity_collision(%x_reg, %y_reg, %width, %height)
     # Load player's perimeter x and y-values
-    # TODO: check for off-by-one errors
     load_word(player_x, $t0)
     load_word(player_y, $t1)
     addi $t2, $t0, PLAYER_WIDTH
@@ -735,7 +733,7 @@ _handle_collision_end:
 # Update the player's y-velocity depending on whether a platform is below the player
 _platform_loop_end:
     beq $s6, $zero, _start_player_fall
-    beq $s6, 1, _reset_player_y_velocity
+    beq $s6, 1, _update_player_y_velocity
     j _player_collisions_end
 
     _start_player_fall:         # start falling if no platforms are below the player
@@ -743,7 +741,9 @@ _platform_loop_end:
         store_word(player_y_velocity, $s3)
         j _player_collisions_end
 
-    _reset_player_y_velocity:   # reset the y-velocity if a platform is below the player
+    _update_player_y_velocity:  # reset the y-velocity if a platform is below the player and the player is not jumping
+        load_word(player_y_velocity, $s4)
+        blt $s4, $zero, _player_collisions_end
         store_word(player_y_velocity, $zero)
 
 _player_collisions_end:
@@ -775,7 +775,6 @@ _player_collisions_end:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
-    # subi $a1, $a1, 1  # TODO: figure out why this off-by-one fix causes issues with horizontal movement clearing
     bge $s7, $zero, _clear_vacated_background   # no additional calculations needed for non-upward movement
     # If moving upwards, add the required offset
     addi $a1, $a1, PLAYER_HEIGHT
@@ -790,13 +789,14 @@ _update_vertical_values:
     # Update jump time if the player is moving upwards (i.e. jumping)
     bge $s7, $zero, _update_player_y_end
 
-    load_word(player_jump_time, $s6)
-    addi $s6, $s6, 1
-    # If the jump's apex is reached, start falling
-    blt $s6, PLAYER_JUMP_APEX_TIME, _update_player_jump_time
-    add $s6, $zero, $zero   # overwrites the jump time to reset it
-    li $s7, PLAYER_DELTA_Y
-    store_word(player_y_velocity, $s7)
+    # TODO: jump apex timing
+    # load_word(player_jump_time, $s6)
+    # addi $s6, $s6, 1
+    # # If the jump's apex is reached, start falling
+    # blt $s6, PLAYER_JUMP_APEX_TIME, _update_player_jump_time
+    # add $s6, $zero, $zero   # overwrites the jump time to reset it
+    # li $s7, PLAYER_DELTA_Y
+    # store_word(player_y_velocity, $s7)
 
 _update_player_jump_time:
     store_word(player_jump_time, $s6)
@@ -818,6 +818,8 @@ _update_player_y_end:
     # $t1: draw_entity and update_player_x
     # $t3: draw_entity
     # $v0: draw_entity
+    # $a0
+    # $a1
 .macro handle_keypress()
     li $s0, KEYSTROKE_ADDRESS
     lw $s1, 0($s0)
@@ -836,7 +838,11 @@ _update_player_y_end:
     j _handle_keypress_end
 
 _w_pressed:
+    # Update player's y-velocity
+    li $a0, -PLAYER_DELTA_Y
+    store_word(player_y_velocity, $a0)
     j _handle_keypress_end
+
 _a_pressed:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
@@ -848,6 +854,7 @@ _a_pressed:
 
     update_player_x(-PLAYER_DELTA_X)
     j _handle_keypress_end
+
 _d_pressed:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
@@ -856,8 +863,10 @@ _d_pressed:
 
     update_player_x(PLAYER_DELTA_X)
     j _handle_keypress_end
+
 _r_pressed:
     j initialize
+
 _q_pressed:
     j quit
 
@@ -884,9 +893,8 @@ initialize:     # jump here on restart
 
 game_loop:
 
-    handle_keypress()
+    handle_keypress()   # this can update the player's x-value, do this before drawing
 
-    # If collision detection goes wrong, handle_keypress could colour over an enemy or platform, so we do that first
     draw_enemies()
     draw_platforms()
 
@@ -894,7 +902,10 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    player_collisions()     # this can update the player's velocity, do this before updating the y-value
+    # TODO: choose whether to update player's y-value and velocity after drawing here
+    # Pro: cool vertical dilation animation during fall
+    # Con: risk issues with collision detection
+    player_collisions()     # this can update the player's y-velocity, do this before updating the y-value
     update_player_y()
 
     sleep()
