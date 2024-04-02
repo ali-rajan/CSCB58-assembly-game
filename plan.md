@@ -36,7 +36,7 @@
 - [ ] Player-platform collision
   - [x] Vertical collision
   - [ ] Horizontal collision
-- [ ] Player jumping
+- [x] Player jumping
 - [x] Restart and quit key presses
 - [ ] Enemy collision
 
