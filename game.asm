@@ -85,12 +85,20 @@
 
 # Movement
 .eqv SLEEP_DURATION 40              # sleep duration in milliseconds (TODO: set to higher value when debugging)
-.eqv PLAYER_DELTA_X 2               # x-value increment for each keypress
+.eqv PLAYER_DELTA_X 1               # x-value increment for each keypress   (TODO: increase later)
+.eqv PLAYER_DELTA_Y 1
+.eqv PLAYER_JUMP_APEX_TIME 100
 # Bounds to prevent player from going off-screen
 .eqv PLAYER_MIN_X 0
 .eqv PLAYER_MAX_X 61
-# Dimensions of the area to fill with the background colour when moving the player in the x and y directions
-# NOTE: these depend on the position increment values
+.eqv PLAYER_MIN_Y 0
+.eqv PLAYER_MAX_Y 61
+
+.eqv COLLISION_NONE 100000
+.eqv COLLISION_TOP 100001
+.eqv COLLISION_BOTTOM 100002
+.eqv COLLISION_LEFT 100003
+.eqv COLLISION_RIGHT 100004
 
 .eqv NUM_PLATFORMS 5
 .eqv NUM_ENEMIES 3
@@ -99,6 +107,8 @@
 
 player_x: .word PLAYER_INITIAL_X
 player_y: .word PLAYER_INITIAL_Y
+player_y_velocity: .word 1
+player_jump_time: .word 0
 
 # Coordinates of each platform's top-left unit
 platforms_x: .word 0:NUM_PLATFORMS
@@ -110,6 +120,10 @@ enemies_y: .word 0:NUM_ENEMIES
 
 # Debug text
 keypress_text_debug: .asciiz "key pressed: "
+collision_top_debug: .asciiz "top collision\n"
+collision_bottom_debug: .asciiz "bottom collision\n"
+collision_left_debug: .asciiz "left collision\n"
+collision_right_debug: .asciiz "right collision\n"
 newline: .asciiz "\n"
 
 .text
@@ -120,6 +134,8 @@ j main
 
 
 #################### UTILITIES ####################
+
+# TODO: remove print macros once done debugging
 
 # Prints the given string.
 # Parameters:
@@ -141,6 +157,18 @@ j main
     # $a0
 .macro print_char(%reg)
     li $v0, 11
+    move $a0, %reg
+    syscall
+.end_macro
+
+# Prints the given register's integer value.
+# Parameters:
+    # %reg: register storing the integer
+# Uses:
+    # $v0
+    # $a0
+.macro print_int(%reg)
+    li $v0, 1
     move $a0, %reg
     syscall
 .end_macro
@@ -464,7 +492,7 @@ _draw_entities_loop:
 _draw_entities_end:
 .end_macro
 
-# Randomly generates x and y-values for all platforms except the first, storing them in platform_x and platform_y
+# Randomly generates x and y-values for all platforms except the first, storing them in platforms_x and platforms_y
 # (respectively). The first platform is placed directly below the player's initial position.
 # Uses:
     # $t0: initialize_entities and macro
@@ -565,7 +593,7 @@ _draw_entities_end:
 # Parameters:
     # %delta_x: change in x-value, an immediate value
 # Uses:
-    # $t0: load_word and store_word
+    # $t0: store_word
     # $t1
 .macro update_player_x(%delta_x)
     load_word(player_x, $t1)
@@ -578,6 +606,202 @@ _draw_entities_end:
     store_word(player_x, $t1)   # update if in bounds
 
 _update_player_x_end:
+.end_macro
+
+# Detects whether there is a collision between the player and the given entity, and if so, returns which direction from
+# the player the collision is in.
+# TODO: document collision direction checking order
+# The collision directions are checked in this order: no collision, bottom, top, left, right; the first detected
+# direction is returned.
+# Returns:
+    # $v0: COLLISION_NONE, COLLISION_TOP, COLLISION_BOTTOM, COLLISION_LEFT, or COLLISION_RIGHT
+# Uses:
+    # $t0
+    # $t1
+    # $t2
+    # $t3
+    # $t4
+    # $t5
+    # $v0
+.macro entity_collision(%x_reg, %y_reg, %width, %height)
+    # Load player's perimeter x and y-values
+    # TODO: check for off-by-one errors
+    load_word(player_x, $t0)
+    load_word(player_y, $t1)
+    addi $t2, $t0, PLAYER_WIDTH
+    addi $t3, $t1, PLAYER_HEIGHT
+    # Load other entity's perimeter x and y-values
+    addi $t4, %x_reg, %width
+    addi $t5, %y_reg, %height
+    # subi $t5, $t5, 1
+
+    #               left x (inclusive)  right x (exclusive) top y (inclusive)   bottom y (exclusive)
+    # Player        $t0                 $t2                 $t1                 $t3
+    # Other entity  %x_reg              $t4                 %y_reg              $t5
+
+    # Check if entity collides with player
+    li $v0, COLLISION_NONE  # return value
+    blt $t2, %x_reg, _entity_collision_end
+    blt $t4, $t0, _entity_collision_end
+    blt $t3, %y_reg, _entity_collision_end
+    blt $t5, $t1, _entity_collision_end
+
+    # Determine collision direction relative to player
+    bgt $t3, %y_reg, _no_bottom_collision
+    li $v0, COLLISION_BOTTOM
+    j _entity_collision_end
+
+_no_bottom_collision:
+    bgt $t5, $t1, _no_top_collision
+    li $v0, COLLISION_TOP
+    j _entity_collision_end
+
+_no_top_collision:
+    bgt $t4, $t0, _no_left_collision
+    li $v0, COLLISION_LEFT
+    j _entity_collision_end
+
+_no_left_collision:
+    bgt %x_reg, $t2, _entity_collision_end
+    li $v0, COLLISION_RIGHT
+
+_entity_collision_end:
+.end_macro
+
+# Handles collisions between the player and all of the platforms and enemies.
+# Uses:
+    # $s0
+    # $s1
+    # $s2
+    # $s3
+    # $s4
+    # $s5
+    # $t0: entity_collision and store_word
+    # $t1: entity_collision
+    # $t2: entity_collision
+    # $t3: entity_collision
+    # $t4: entity_collision
+    # $t5: entity_collision
+    # $v0: entity_collision
+.macro player_collisions()
+    la $s0, platforms_x
+    la $s1, platforms_y
+    add $s2, $zero, $zero   # $s2 = array offset = sizeof(word) * i (for the index i)
+    li $s3, NUM_PLATFORMS
+    sll $s3, $s3, 2         # $s3 = NUM_PLATFORMS * sizeof(word)
+    add $s6, $zero, $zero   # flag storing whether a platform is below the player
+
+_for_each_platform:
+    bge $s2, $s3, _platform_loop_end    # while i < NUM_PLATFORMS
+
+    lw $s4, 0($s0)  # $s0 = entities_x[i]
+    lw $s5, 0($s1)  # $s1 = entities_y[i]
+
+    entity_collision($s4, $s5, PLATFORM_WIDTH, PLATFORM_THICKNESS)
+    # If the platform is below the player, set flag to true
+    bne $v0, COLLISION_BOTTOM, _handle_collision_end
+    li $s6, 1
+
+    # Handle platform collision
+    # TODO: remove once done debugging
+#     beq $v0, COLLISION_TOP, _top_collision
+#     beq $v0, COLLISION_BOTTOM, _bottom_collision
+#     beq $v0, COLLISION_LEFT, _left_collision
+#     beq $v0, COLLISION_RIGHT, _right_collision
+#     j _handle_collision_end
+
+# _top_collision:
+#     print_str(collision_top_debug)
+#     j _handle_collision_end
+
+# _bottom_collision:
+#     print_str(collision_bottom_debug)
+#     j _handle_collision_end
+
+# _left_collision:
+#     print_str(collision_left_debug)
+#     j _handle_collision_end
+
+# _right_collision:
+#     print_str(collision_right_debug)
+#     j _handle_collision_end
+
+_handle_collision_end:
+    addi $s2, $s2, 4
+    addi $s0, $s0, 4
+    addi $s1, $s1, 4
+    j _for_each_platform
+
+# Update the player's y-velocity depending on whether a platform is below the player
+_platform_loop_end:
+    beq $s6, $zero, _start_player_fall
+    beq $s6, 1, _reset_player_y_velocity
+    j _player_collisions_end
+
+    _start_player_fall:         # start falling if no platforms are below the player
+        li $s3, PLAYER_DELTA_Y
+        store_word(player_y_velocity, $s3)
+        j _player_collisions_end
+
+    _reset_player_y_velocity:   # reset the y-velocity if a platform is below the player
+        store_word(player_y_velocity, $zero)
+
+_player_collisions_end:
+.end_macro
+
+# Updates the player's y-value based on it's vertical velocity, handles the player's jump time, and fills the pixels
+# vacated due to the player's vertical movement.
+# Uses:
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $s6
+    # $s7
+    # $t0: store_word and draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $v0: draw_entity
+.macro update_player_y()
+    load_word(player_y, $s6)
+    load_word(player_y_velocity, $s7)
+    add $s6, $s6, $s7
+
+    # Prevent player from going out of bounds
+    blt $s6, PLAYER_MIN_Y, _update_player_y_end
+    bgt $s6, PLAYER_MAX_Y, _update_player_y_end
+    beq $s7, $zero, _update_vertical_values         # no pixels are vacated so clearing is skipped
+
+    # Clear the pixels not occupied after moving the player
+    load_word(player_x, $a0)
+    load_word(player_y, $a1)
+    # subi $a1, $a1, 1  # TODO: figure out why this off-by-one fix causes issues with horizontal movement clearing
+    bge $s7, $zero, _clear_vacated_background   # no additional calculations needed for non-upward movement
+    # If moving upwards, add the required offset
+    addi $a1, $a1, PLAYER_HEIGHT
+    subi $a1, $a1, PLAYER_DELTA_Y
+
+_clear_vacated_background:
+    draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_DELTA_Y, COLOUR_BACKGROUND)
+
+_update_vertical_values:
+    store_word(player_y, $s6)
+
+    # Update jump time if the player is moving upwards (i.e. jumping)
+    bge $s7, $zero, _update_player_y_end
+
+    load_word(player_jump_time, $s6)
+    addi $s6, $s6, 1
+    # If the jump's apex is reached, start falling
+    blt $s6, PLAYER_JUMP_APEX_TIME, _update_player_jump_time
+    add $s6, $zero, $zero   # overwrites the jump time to reset it
+    li $s7, PLAYER_DELTA_Y
+    store_word(player_y_velocity, $s7)
+
+_update_player_jump_time:
+    store_word(player_jump_time, $s6)
+
+_update_player_y_end:
 .end_macro
 
 
@@ -601,8 +825,8 @@ _update_player_x_end:
 
     lw $s1, 4($s0)  # ASCII value of key pressed
     # TODO: remove once done debugging
-    print_char($s1)
-    print_str(newline)
+    # print_char($s1)
+    # print_str(newline)
 
     beq $s1, ASCII_W, _w_pressed
     beq $s1, ASCII_A, _a_pressed
@@ -617,6 +841,7 @@ _a_pressed:
     # Clear the pixels not occupied after moving the player
     load_word(player_x, $a0)
     load_word(player_y, $a1)
+    # Add offset needed due to left movement
     addi $a0, $a0, PLAYER_WIDTH
     subi $a0, $a0, PLAYER_DELTA_X
     draw_entity($a0, $a1, PLAYER_DELTA_X, PLAYER_HEIGHT, COLOUR_BACKGROUND)
@@ -669,8 +894,10 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    sleep()
+    player_collisions()     # this can update the player's velocity, do this before updating the y-value
+    update_player_y()
 
+    sleep()
     j game_loop
 
 quit:
