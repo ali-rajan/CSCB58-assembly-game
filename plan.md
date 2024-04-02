@@ -33,9 +33,12 @@
 
 - [x] Player horizontal movement
 - [x] Gravity
-- [x] Player-platform collision
+- [ ] Player-platform collision
+  - [x] Vertical collision
+  - [ ] Horizontal collision
 - [ ] Player jumping
 - [x] Restart and quit key presses
+- [ ] Enemy collision
 
 ## Milestone 3
 
