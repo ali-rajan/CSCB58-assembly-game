@@ -33,9 +33,9 @@
 
 - [x] Player horizontal movement
 - [x] Gravity
-- [ ] Player-platform collision
+- [x] Player-platform collision
   - [x] Vertical collision
-  - [ ] Horizontal collision
+  - [x] Horizontal collision
 - [x] Player jumping
 - [x] Restart and quit key presses
 - [ ] Enemy collision
