@@ -32,8 +32,8 @@
 ## Milestone 2
 
 - [x] Player horizontal movement
-- [ ] Gravity
-- [ ] Player-platform collision
+- [x] Gravity
+- [x] Player-platform collision
 - [ ] Player jumping
 - [x] Restart and quit key presses
 
