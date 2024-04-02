@@ -105,11 +105,12 @@ while game_run:
   else if game_won():
     display game won screen
 
-  draw_player()
+  handle_keypress()
+
   draw_enemies()
   draw_platforms()
+  draw_player()
 
-  handle_keypress()
   update_player()
   update_platforms()
   update_enemies()
