@@ -58,10 +58,8 @@
 .eqv PLATFORM_MIN_X 0
 .eqv PLATFORM_MAX_X 52
 # TODO: adjust y-range so it is never impossible to jump onto one (height-wise)
-# .eqv PLATFORM_MIN_Y 0
-# .eqv PLATFORM_MAX_Y 63
-.eqv PLATFORM_MIN_Y 28
-.eqv PLATFORM_MAX_Y 28
+.eqv PLATFORM_MIN_Y 0
+.eqv PLATFORM_MAX_Y 63
 .eqv ENEMY_WIDTH 2
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
@@ -118,6 +116,8 @@ enemies_y: .word 0:NUM_ENEMIES
 keypress_text_debug: .asciiz "key pressed: "
 collision_top_debug: .asciiz "top collision\n"
 collision_bottom_debug: .asciiz "bottom collision\n"
+collision_left_debug: .asciiz "left collision\n"
+collision_right_debug: .asciiz "right collision\n"
 newline: .asciiz "\n"
 
 .text
@@ -651,7 +651,13 @@ _no_bottom_collision:
     j _entity_collision_end
 
 _no_top_collision:
-    # TODO: add horizontal collision logic here
+    bgt $t4, $t0, _no_left_collision
+    li $v0, COLLISION_LEFT
+    j _entity_collision_end
+
+_no_left_collision:
+    bgt %x_reg, $t2, _entity_collision_end
+    li $v0, COLLISION_RIGHT
 
 _entity_collision_end:
 .end_macro
@@ -689,6 +695,8 @@ _for_each_platform:
     # Handle platform collision
     beq $v0, COLLISION_TOP, _top_collision
     beq $v0, COLLISION_BOTTOM, _bottom_collision
+    beq $v0, COLLISION_LEFT, _left_collision
+    beq $v0, COLLISION_RIGHT, _right_collision
     j _handle_collision_end
 
 _top_collision:
@@ -697,6 +705,15 @@ _top_collision:
 
 _bottom_collision:
     print_str(collision_bottom_debug)
+    j _handle_collision_end
+
+_left_collision:
+    print_str(collision_left_debug)
+    j _handle_collision_end
+
+_right_collision:
+    print_str(collision_right_debug)
+    j _handle_collision_end
 
 _handle_collision_end:
 
