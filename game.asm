@@ -631,7 +631,6 @@ _update_player_x_end:
     # Load other entity's perimeter x and y-values
     addi $t4, %x_reg, %width
     addi $t5, %y_reg, %height
-    # subi $t5, $t5, 1
 
     #               left x (inclusive)  right x (exclusive) top y (inclusive)   bottom y (exclusive)
     # Player        $t0                 $t2                 $t1                 $t3
@@ -712,14 +711,17 @@ _for_each_platform:
     _platform_bottom_collision:
         li $s6, 1
         j _handle_platform_collision_end
-    _platform_left_collision:   # TODO: position player right of platform
-        # print_str(collision_left_debug)
-        # addi $s4, $s4, PLATFORM_WIDTH
-        # store_word(player_x, $s4)
-        # j _handle_platform_collision_end
-    _platform_right_collision:  # TODO: position player left of platform
-        # print_str(collision_right_debug)
-        # j _handle_platform_collision_end
+    _platform_left_collision:
+        print_str(collision_left_debug)
+        addi $s4, $s4, PLATFORM_WIDTH
+        addi $s4, $s4, 1    # TODO: this causes an off-by-one error, removing it breaks collision detection
+        store_word(player_x, $s4)
+        j _handle_platform_collision_end
+    _platform_right_collision:
+        print_str(collision_right_debug)
+        subi $s4, $s4, PLAYER_WIDTH
+        store_word(player_x, $s4)
+        j _handle_platform_collision_end
 
     _handle_platform_collision_end:
         addi $s2, $s2, 4
@@ -903,7 +905,7 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    handle_keypress()   # this can update the player's x-value, do this before drawing
+    handle_keypress()   # do before player_collisions as that places player to the side of collided platforms
     # TODO: choose whether to update player's y-value and velocity after drawing here
     # Pro: cool vertical dilation animation during fall
     # Con: risk issues with collision detection
