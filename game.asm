@@ -638,7 +638,6 @@ _draw_entities_end:
 # Draws the UI divider.
 # Uses:
     # $a0
-# Uses:
     # $s0: draw_entity
     # $s1: draw_entity
     # $s2: draw_entity
