@@ -59,8 +59,12 @@
 
 ## Milestone 4
 
-- [ ] Scrolling platforms
-- [ ] Scrolling enemies
+- [ ] Moving platforms
+  - [x] Scrolling from left to right
+  - [ ] Once fully off screen, respawning to the right
+- [ ] Moving enemies
+  - [ ] Scrolling from left to right
+  - [ ] Once fully off screen, respawning to the right
 - [ ] Shooting enemies
 
 ## Bugs
@@ -69,3 +73,7 @@
     - Player is moved below the lower platform
 - [ ] Ceiling spiderman
   - Player stays attached to the ceiling if reached when jumping
+- [ ] Platform pushing player
+  - When a platform collides the player on the right, vacated player pixels are not filled properly
+- [ ] Air jump
+  - When falling off a platform without jumping, player can jump while in the air 
