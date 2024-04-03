@@ -93,6 +93,8 @@
 .eqv PLAYER_MIN_Y 0
 .eqv PLAYER_MAX_Y 61
 
+.eqv PLAYER_HEALTH 3
+
 .eqv COLLISION_NONE 100000
 .eqv COLLISION_TOP 100001
 .eqv COLLISION_BOTTOM 100002
@@ -108,7 +110,7 @@ player_x: .word PLAYER_INITIAL_X
 player_y: .word PLAYER_INITIAL_Y
 player_y_velocity: .word 0
 player_jump_time: .word 0
-player_health: .word 3
+player_health: .word PLAYER_HEALTH
 
 # Coordinates of each platform's top-left unit
 platforms_x: .word 0:NUM_PLATFORMS
@@ -778,22 +780,6 @@ _platform_bottom_collisions_end:
 _platform_top_collisions_end:
 .end_macro
 
-# Decreases the player health, handling the case where the player runs out of health.
-# Uses:
-    # $t0: store_word
-    # $t1
-.macro decrease_player_health()
-    load_word(player_health, $t1)
-    subi $t1, $t1, 1
-    store_word(player_health, $t1)
-
-    print_str(health_lost_debug)
-    print_int($t1)
-    print_str(newline)
-
-    ble $t1, $zero, game_over
-.end_macro
-
 # Handles collisions between the player and all enemies.
 # Uses: entity_collision
     # $t0: entity_collision, draw_entity, decrease_player_health, and macro
@@ -898,6 +884,25 @@ _update_player_y_end:
 
 #################### GAME ####################
 
+# Decreases the player health, handling the case where the player runs out of health.
+# Uses:
+    # $t0: store_word
+    # $t1
+    # $t2
+.macro decrease_player_health()
+    load_word(player_health, $t1)
+    subi $t1, $t1, 1
+    store_word(player_health, $t1)
+
+    print_str(health_lost_debug)
+    print_int($t1)
+    print_str(newline)
+
+    ble $t1, $zero, game_over
+
+_decrease_player_health_end:
+.end_macro
+
 # Handles the keypresses for movement, restarting, and quitting the game. For player movement, the original player
 # position is filled with the background colour before updating the position; the player is not redrawn after updating.
 # Uses:
@@ -993,6 +998,9 @@ initialize:     # jump here on restart
     li $s1, PLAYER_INITIAL_Y
     store_word(player_x, $s0)
     store_word(player_y, $s1)
+
+    li $s0, PLAYER_HEALTH
+    store_word(player_health, $s0)
 
     initialize_enemies()
     initialize_platforms()
