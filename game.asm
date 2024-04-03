@@ -783,7 +783,6 @@ _platform_top_collisions_end:
     # $t0: store_word
     # $t1
 .macro decrease_player_health()
-    # TODO: implement game over condition based on player lives
     load_word(player_health, $t1)
     subi $t1, $t1, 1
     store_word(player_health, $t1)
@@ -817,7 +816,6 @@ _platform_top_collisions_end:
     # $s6
     # $s7
 .macro handle_enemy_collisions()
-        # Handle enemy collisions
     la $s4, enemies_x
     la $s5, enemies_y
     add $s6, $zero, $zero   # $s6 = array offset = sizeof(word) * i (for the index i)
@@ -913,28 +911,24 @@ _update_player_y_end:
     # $v0: draw_entity
     # $a0
     # $a1
-.macro handle_movement_keypress()
+.macro handle_keypress()
     li $s0, KEYSTROKE_ADDRESS
     lw $s1, 0($s0)
-    bne $s1, 1, _handle_movement_keypress_end
+    bne $s1, 1, _handle_keypress_end
 
     lw $s1, 4($s0)  # ASCII value of key pressed
-    # TODO: remove once done debugging
-    # print_char($s1)
-    # print_str(newline)
-
     beq $s1, ASCII_W, _w_pressed
     beq $s1, ASCII_A, _a_pressed
     beq $s1, ASCII_D, _d_pressed
     beq $s1, ASCII_R, _r_pressed
     beq $s1, ASCII_Q, _q_pressed
-    j _handle_movement_keypress_end
+    j _handle_keypress_end
 
 _w_pressed:
     # Update player's y-velocity
     li $a0, -PLAYER_DELTA_Y
     store_word(player_y_velocity, $a0)
-    j _handle_movement_keypress_end
+    j _handle_keypress_end
 
 _a_pressed:
     # Clear the pixels not occupied after moving the player
@@ -946,7 +940,7 @@ _a_pressed:
     draw_entity($a0, $a1, PLAYER_DELTA_X, PLAYER_HEIGHT, COLOUR_BACKGROUND)
 
     update_player_x(-PLAYER_DELTA_X)
-    j _handle_movement_keypress_end
+    j _handle_keypress_end
 
 _d_pressed:
     # Clear the pixels not occupied after moving the player
@@ -955,7 +949,7 @@ _d_pressed:
     draw_entity($a0, $a1, PLAYER_DELTA_X, PLAYER_HEIGHT, COLOUR_BACKGROUND)
 
     update_player_x(PLAYER_DELTA_X)
-    j _handle_movement_keypress_end
+    j _handle_keypress_end
 
 _r_pressed:
     j initialize
@@ -963,7 +957,30 @@ _r_pressed:
 _q_pressed:
     j quit
 
-_handle_movement_keypress_end:
+_handle_keypress_end:
+.end_macro
+
+# Handles keypresses only for restarting and quitting the game.
+# Uses:
+    # $s0
+    # $s1
+.macro handle_restart_quit_keypress()
+    li $s0, KEYSTROKE_ADDRESS
+    lw $s1, 0($s0)
+    bne $s1, 1, _handle_restart_quit_keypress_end
+
+    lw $s1, 4($s0)  # ASCII value of key pressed
+    beq $s1, ASCII_R, _r_pressed
+    beq $s1, ASCII_Q, _q_pressed
+    j _handle_restart_quit_keypress_end
+
+_r_pressed:
+    j initialize
+
+_q_pressed:
+    j quit
+
+_handle_restart_quit_keypress_end:
 .end_macro
 
 
@@ -992,7 +1009,7 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    handle_movement_keypress()   # do before handle_platform_collisions as that places player to the side of collided platforms
+    handle_keypress()   # do before handle_platform_collisions as that places player to the side of collided platforms
     # TODO: choose whether to update player's y-value and velocity after drawing here
     # Pro: cool vertical dilation animation during fall
     # Con: risk issues with collision detection
@@ -1005,7 +1022,7 @@ game_loop:
 
 game_over:
     fill_background(COLOUR_ENEMY)
-    handle_movement_keypress()
+    handle_restart_quit_keypress()
     sleep()
     j game_over
 
