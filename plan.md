@@ -11,10 +11,11 @@
   - Collision between player and enemy to lose HP
 - Enemies are obstacles moving horizontally towards player
   - Shooting lasers
-- Hearts to count HP
 - Gravity and jumping along with horizontal movement
 - Fail condition: player falls too low or all HP lost to collisions
-- Win condition: all enemies evaded (for a certain enemey count)
+- Win condition: all platforms crossed (for a certain platform count)
+- Hearts icons to count HP
+- Score bar based on number of platforms crossed
 - Restart or quit at any point with certain key presses
 
 ## Milestone 1
@@ -25,23 +26,29 @@
   - [x] Single platform
   - [x] Multiple platforms
   - [x] Random platform positioning
-- [ ] Draw enemies
-  - [ ] Single enemy
-  - [ ] Multiple enemies
+- [x] Draw enemies
+  - [x] Single enemy
+  - [x] Multiple enemies
 
 ## Milestone 2
 
-- [ ] Player horizontal movement
-- [ ] Gravity
-- [ ] Player-platform collision
-- [ ] Player jumping
-- [ ] Restart and quit key presses
+- [x] Player horizontal movement
+- [x] Gravity
+- [x] Player-platform collision
+  - [x] Vertical collision
+  - [x] Horizontal collision
+- [x] Player jumping
+- [x] Restart and quit key presses
+- [x] Enemy collision
 
 ## Milestone 3
 
 - [ ] HP
   - [ ] Draw hearts
   - [ ] Decrement on enemy collision
+- [ ] Score
+  - [ ] Draw bar based on number of platforms crossed
+  - [ ] Increment on platform crossed
 - [ ] Fail condition
   - [ ] Falling too low
   - [ ] All HP lost to collisions
@@ -55,3 +62,10 @@
 - [ ] Scrolling platforms
 - [ ] Scrolling enemies
 - [ ] Shooting enemies
+
+## Bugs
+
+- [ ] Platform both below and above the player
+    - Player is moved below the lower platform
+- [ ] Ceiling spiderman
+  - Player stays attached to the ceiling if reached when jumping
