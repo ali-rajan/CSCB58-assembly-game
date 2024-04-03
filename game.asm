@@ -1001,7 +1001,8 @@ initialize:     # jump here on restart
     li $s1, PLAYER_INITIAL_Y
     store_word(player_x, $s0)
     store_word(player_y, $s1)
-
+    store_word(player_y_velocity, $zero)
+    store_word(player_jump_time, $zero)
     li $s0, PLAYER_HEALTH
     store_word(player_health, $s0)
 
@@ -1026,7 +1027,7 @@ game_loop:
     # Con: risk issues with collision detection
     handle_platform_collisions()     # this can update the player's y-velocity, do this before updating the y-value
     handle_enemy_collisions()
-    update_player_y()
+    update_player_y()   # TODO: fix ceiling spiderman bug
 
     sleep()
     j game_loop
