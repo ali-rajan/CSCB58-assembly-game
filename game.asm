@@ -59,6 +59,9 @@
 .eqv PLATFORM_MAX_X 52
 .eqv PLATFORM_MIN_Y 3
 .eqv PLATFORM_MAX_Y 63
+# TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
+# .eqv PLATFORM_MIN_Y 28
+# .eqv PLATFORM_MAX_Y 32
 .eqv ENEMY_WIDTH 2
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
