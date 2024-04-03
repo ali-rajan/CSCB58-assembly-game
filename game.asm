@@ -55,11 +55,13 @@
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
 # Platform spawn position ranges for the top-left unit
-.eqv PLATFORM_MIN_X 0
+.eqv PLATFORM_MIN_X 12
 .eqv PLATFORM_MAX_X 52
-# TODO: adjust y-range so it is never impossible to jump onto one (height-wise)
-.eqv PLATFORM_MIN_Y 0
+.eqv PLATFORM_MIN_Y 3
 .eqv PLATFORM_MAX_Y 63
+# TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
+# .eqv PLATFORM_MIN_Y 28
+# .eqv PLATFORM_MAX_Y 32
 .eqv ENEMY_WIDTH 2
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
@@ -94,6 +96,8 @@
 .eqv PLAYER_MIN_Y 0
 .eqv PLAYER_MAX_Y 61
 
+.eqv PLAYER_HEALTH 3
+
 .eqv COLLISION_NONE 100000
 .eqv COLLISION_TOP 100001
 .eqv COLLISION_BOTTOM 100002
@@ -109,6 +113,7 @@ player_x: .word PLAYER_INITIAL_X
 player_y: .word PLAYER_INITIAL_Y
 player_y_velocity: .word 0
 player_jump_time: .word 0
+player_health: .word PLAYER_HEALTH
 
 # Coordinates of each platform's top-left unit
 platforms_x: .word 0:NUM_PLATFORMS
@@ -124,6 +129,7 @@ collision_top_debug: .asciiz "top collision\n"
 collision_bottom_debug: .asciiz "bottom collision\n"
 collision_left_debug: .asciiz "left collision\n"
 collision_right_debug: .asciiz "right collision\n"
+health_lost_debug: .asciiz "lives remaining: "
 newline: .asciiz "\n"
 
 .text
@@ -395,6 +401,27 @@ _draw_entity_end:
 
 #################### ENTITIES ####################
 
+# Generates random x and y-values in the given ranges and stores them in the specified registers.
+# Parameters:
+    # %min_x: minimum possible x-value
+    # %max_x: maximum possible x-value
+    # %min_y: minimum possible y-value
+    # %max_y: maximum possible y-value
+    # %dest_x_reg: register to store the x-value in
+    # %dest_y_reg: register to store the y-value in
+# Uses:
+    # $a0: random_integer
+    # $a1: random_integer
+    # $v0: random_integer
+    # %dest_x_reg
+    # %dest_y_reg
+.macro generate_random_position(%min_x, %max_x, %min_y, %max_y, %dest_x_reg, %dest_y_reg)
+    random_integer(%min_x, %max_x)
+    move %dest_x_reg, $v0
+    random_integer(%min_y, %max_y)
+    move %dest_y_reg, $v0
+.end_macro
+
 # Randomly generates x and y-values for all enemies based on the given ranges, storing them in the given arrays.
 # Parameters:
     # %entities_x: the array of x-values
@@ -413,9 +440,9 @@ _draw_entity_end:
     # $t5
     # $t6
     # $t7
-    # $a0: random_integer
-    # $a1: random_integer
-    # $v0: random_integer
+    # $a0: generate_random_position
+    # $a1: generate_random_position
+    # $v0: generate_random_position
 .macro initialize_entities(%entities_x, %entities_y, %num_entities, %min_x, %max_x, %min_y, %max_y)
     # TODO: maybe separate this into a macro that randomly fills one array at a time (could be useful for platform
     # initializing where only y-values are randomized)
@@ -430,11 +457,7 @@ _initialize_entities_loop:                  # $t2 = array offset
     add $t4, $t0, $t2
     add $t5, $t1, $t2
 
-    # Randomly generate coordinates in the valid range and store them
-    random_integer(%min_x, %max_x)
-    move $t6, $v0
-    random_integer(%min_y, %max_y)
-    move $t7, $v0
+    generate_random_position(%min_x, %max_x, %min_y, %max_y, $t6, $t7)
     sw $t6, 0($t4)  # %entities_x[i] = random x-value
     sw $t7, 0($t5)  # %entities_y[i] = random y-value
 
@@ -479,8 +502,8 @@ _initialize_entities_end:
 _draw_entities_loop:
     bge $t4, $t5, _draw_entities_end        # while i < %num_entities
 
-    lw $t6, 0($t8)  # $t8 = entities_x[i]
-    lw $t7, 0($t9)  # $t9 = entities_y[i]
+    lw $t6, 0($t8)  # $t6 = entities_x[i]
+    lw $t7, 0($t9)  # $t7 = entities_y[i]
 
     draw_entity($t6, $t7, %entity_width, %entity_height, %entity_colour)
 
@@ -665,7 +688,7 @@ _no_left_collision:
 _entity_collision_end:
 .end_macro
 
-# Handles collisions between the player and all of the platforms and enemies.
+# Handles collisions between the player and all of the platforms.
 # Uses:
     # $s0
     # $s1
@@ -682,7 +705,7 @@ _entity_collision_end:
     # $t4: entity_collision
     # $t5: entity_collision
     # $v0: entity_collision
-.macro player_collisions()
+.macro handle_platform_collisions()
     la $s0, platforms_x
     la $s1, platforms_y
     add $s2, $zero, $zero   # $s2 = array offset = sizeof(word) * i (for the index i)
@@ -694,8 +717,8 @@ _entity_collision_end:
 _for_each_platform:
     bge $s2, $s3, _platform_loop_end    # while i < NUM_PLATFORMS
 
-    lw $s4, 0($s0)  # $s0 = entities_x[i]
-    lw $s5, 0($s1)  # $s1 = entities_y[i]
+    lw $s4, 0($s0)  # $s4 = platforms_x[i]
+    lw $s5, 0($s1)  # $s5 = platforms_y[i]
 
     entity_collision($s4, $s5, PLATFORM_WIDTH, PLATFORM_THICKNESS)
     # Handle platform collisions, setting their respective flags if needed
@@ -712,22 +735,20 @@ _for_each_platform:
         li $s6, 1
         j _handle_platform_collision_end
     _platform_left_collision:
-        print_str(collision_left_debug)
         addi $s4, $s4, PLATFORM_WIDTH
         addi $s4, $s4, 1    # TODO: this causes an off-by-one error, removing it breaks collision detection
         store_word(player_x, $s4)
         j _handle_platform_collision_end
     _platform_right_collision:
-        print_str(collision_right_debug)
         subi $s4, $s4, PLAYER_WIDTH
         store_word(player_x, $s4)
         j _handle_platform_collision_end
 
-    _handle_platform_collision_end:
-        addi $s2, $s2, 4
-        addi $s0, $s0, 4
-        addi $s1, $s1, 4
-        j _for_each_platform
+_handle_platform_collision_end:
+    addi $s2, $s2, 4
+    addi $s0, $s0, 4
+    addi $s1, $s1, 4
+    j _for_each_platform
 
 _platform_loop_end:
     # Update the player's y-velocity depending on whether a platform is below the player
@@ -760,6 +781,60 @@ _platform_bottom_collisions_end:
     store_word(player_y_velocity, $s5)
 
 _platform_top_collisions_end:
+.end_macro
+
+# Handles collisions between the player and all enemies.
+# Uses: entity_collision
+    # $t0: entity_collision, draw_entity, decrease_player_health, and macro
+    # $t1: entity_collision and macro
+    # $t2: entity_collision and draw_entity
+    # $t3: entity_collision and draw_entity
+    # $t4: entity_collision
+    # $t5: entity_collision
+    # $t8
+    # $t9
+    # $v0: entity_collision, draw_entity, and generate_random_position
+    # $a0: generate_random_position
+    # $a1: generate_random_position
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $s4
+    # $s5
+    # $s6
+    # $s7
+.macro handle_enemy_collisions()
+    la $s4, enemies_x
+    la $s5, enemies_y
+    add $s6, $zero, $zero   # $s6 = array offset = sizeof(word) * i (for the index i)
+    li $s7, NUM_ENEMIES
+    sll $s7, $s7, 2         # $s7 = NUM_ENEMIES * sizeof(word)
+
+_for_each_enemy:
+    bge $s6, $s7, _enemy_loop_end
+
+    lw $t8, 0($s4)  # $t8 = enemies_x[i]
+    lw $t9, 0($s5)  # $t9 = enemies_y[i]
+
+    entity_collision($t8, $t9, ENEMY_WIDTH, ENEMY_HEIGHT)
+    beq $v0, COLLISION_NONE, _handle_enemy_collision_end    # remove existing enemy on collision
+
+    draw_entity($t8, $t9, ENEMY_WIDTH, ENEMY_HEIGHT, COLOUR_BACKGROUND)     # fill vacated pixels
+    generate_random_position(ENEMY_MIN_X, ENEMY_MAX_X, ENEMY_MIN_Y, ENEMY_MAX_Y, $t0, $t1)
+    # Store new random position for enemy
+    sw $t0, 0($s4)
+    sw $t1, 0($s5)
+
+    decrease_player_health()
+
+_handle_enemy_collision_end:
+    addi $s6, $s6, 4
+    addi $s4, $s4, 4
+    addi $s5, $s5, 4
+    j _for_each_enemy
+
+_enemy_loop_end:
 .end_macro
 
 # Updates the player's y-value based on it's vertical velocity, handles the player's jump time, and fills the pixels
@@ -812,6 +887,25 @@ _update_player_y_end:
 
 #################### GAME ####################
 
+# Decreases the player health, handling the case where the player runs out of health.
+# Uses:
+    # $t0: store_word
+    # $t1
+    # $t2
+.macro decrease_player_health()
+    load_word(player_health, $t1)
+    subi $t1, $t1, 1
+    store_word(player_health, $t1)
+
+    print_str(health_lost_debug)
+    print_int($t1)
+    print_str(newline)
+
+    ble $t1, $zero, game_over
+
+_decrease_player_health_end:
+.end_macro
+
 # Handles the keypresses for movement, restarting, and quitting the game. For player movement, the original player
 # position is filled with the background colour before updating the position; the player is not redrawn after updating.
 # Uses:
@@ -831,10 +925,6 @@ _update_player_y_end:
     bne $s1, 1, _handle_keypress_end
 
     lw $s1, 4($s0)  # ASCII value of key pressed
-    # TODO: remove once done debugging
-    # print_char($s1)
-    # print_str(newline)
-
     beq $s1, ASCII_W, _w_pressed
     beq $s1, ASCII_A, _a_pressed
     beq $s1, ASCII_D, _d_pressed
@@ -878,6 +968,29 @@ _q_pressed:
 _handle_keypress_end:
 .end_macro
 
+# Handles keypresses only for restarting and quitting the game.
+# Uses:
+    # $s0
+    # $s1
+.macro handle_restart_quit_keypress()
+    li $s0, KEYSTROKE_ADDRESS
+    lw $s1, 0($s0)
+    bne $s1, 1, _handle_restart_quit_keypress_end
+
+    lw $s1, 4($s0)  # ASCII value of key pressed
+    beq $s1, ASCII_R, _r_pressed
+    beq $s1, ASCII_Q, _q_pressed
+    j _handle_restart_quit_keypress_end
+
+_r_pressed:
+    j initialize
+
+_q_pressed:
+    j quit
+
+_handle_restart_quit_keypress_end:
+.end_macro
+
 
 main:
 
@@ -888,6 +1001,10 @@ initialize:     # jump here on restart
     li $s1, PLAYER_INITIAL_Y
     store_word(player_x, $s0)
     store_word(player_y, $s1)
+    store_word(player_y_velocity, $zero)
+    store_word(player_jump_time, $zero)
+    li $s0, PLAYER_HEALTH
+    store_word(player_health, $s0)
 
     initialize_enemies()
     initialize_platforms()
@@ -897,7 +1014,6 @@ initialize:     # jump here on restart
     draw_platforms()
 
 game_loop:
-
     draw_enemies()
     draw_platforms()
 
@@ -905,15 +1021,22 @@ game_loop:
     load_word(player_y, $a1)
     draw_entity($a0, $a1, PLAYER_WIDTH, PLAYER_HEIGHT, COLOUR_PLAYER)
 
-    handle_keypress()   # do before player_collisions as that places player to the side of collided platforms
+    handle_keypress()   # do before handle_platform_collisions as that places player to the side of collided platforms
     # TODO: choose whether to update player's y-value and velocity after drawing here
     # Pro: cool vertical dilation animation during fall
     # Con: risk issues with collision detection
-    player_collisions()     # this can update the player's y-velocity, do this before updating the y-value
-    update_player_y()
+    handle_platform_collisions()     # this can update the player's y-velocity, do this before updating the y-value
+    handle_enemy_collisions()
+    update_player_y()   # TODO: fix ceiling spiderman bug
 
     sleep()
     j game_loop
+
+game_over:
+    fill_background(COLOUR_ENEMY)
+    handle_restart_quit_keypress()
+    sleep()
+    j game_over
 
 quit:
     # Exit
