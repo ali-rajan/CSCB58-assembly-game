@@ -43,15 +43,15 @@
 
 ## Milestone 3
 
-- [ ] HP
-  - [ ] Draw hearts
-  - [ ] Decrement on enemy collision
+- [x] HP
+  - [x] Draw hearts
+  - [x] Decrement on enemy collision
 - [ ] Score
   - [ ] Draw bar based on number of platforms crossed
   - [ ] Increment on platform crossed
-- [ ] Fail condition
-  - [ ] Falling too low
-  - [ ] All HP lost to collisions
+- [x] Fail condition
+  - [x] Falling too low
+  - [x] All HP lost to collisions
   - [ ] Draw "game over" screen
 - [ ] Win condition
   - [ ] All enemies evaded
