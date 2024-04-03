@@ -41,11 +41,29 @@
 .eqv DISPLAY_BASE_ADDRESS 0x10008000    # $gp
 .eqv DISPLAY_END_ADDRESS 0x1000bffc     # Bottom-right unit's address
 
-# Dimensions in number of units (not pixels)
 # Note: on my screen, each unit is 5 pixels in the MIPS Bitmap Display as the display is 320x320 instead of 256x256
 # (measured using a screen ruler)
 .eqv DISPLAY_WIDTH 64
 .eqv DISPLAY_HEIGHT 64
+
+# UI dimensions and positions in units (not pixels) (TODO: remove unused constants)
+.eqv UI_HEALTH_WIDTH 2
+.eqv UI_HEALTH_HEIGHT 2
+# .eqv UI_SCORE_BAR_UNIT_WIDTH 1
+# .eqv UI_SCORE_BAR_HEIGHT 2
+
+.eqv UI_HEALTH_Y 1
+# .eqv UI_SCORE_BAR_START_X 62            # 2nd last column
+# .eqv UI_SCORE_BAR_Y 1
+.eqv UI_DIVIDER_Y 4                     # max(UI_HEALTH_HEIGHT, UI_SCORE_BAR_HEIGHT) + padding
+.eqv UI_DIVIDER_THICKNESS 1
+.eqv UI_END_Y 5                         # UI_DIVIDER_Y + UI_DIVIDER_THICKNESS
+
+.eqv UI_HEALTH_1_X 1                  # i-th x-value is (left padding) + (x-spacing + UI_HEALTH_WIDTH) * i
+.eqv UI_HEALTH_2_X 4
+.eqv UI_HEALTH_3_X 7
+
+# Entity dimensions and positions in units (not pixels)
 .eqv PLAYER_WIDTH 3
 .eqv PLAYER_HEIGHT 3
 
@@ -57,7 +75,7 @@
 # Platform spawn position ranges for the top-left unit
 .eqv PLATFORM_MIN_X 12
 .eqv PLATFORM_MAX_X 52
-.eqv PLATFORM_MIN_Y 3
+.eqv PLATFORM_MIN_Y 8                   # UI_END_Y + PLAYER_HEIGHT
 .eqv PLATFORM_MAX_Y 63
 # TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
 # .eqv PLATFORM_MIN_Y 28
@@ -68,14 +86,16 @@
 .eqv ENEMY_MIN_X 40
 .eqv ENEMY_MAX_X 61
 # TODO: adjust these so enemies aren't redundant because they're out of reach vertically
-.eqv ENEMY_MIN_Y 0
+.eqv ENEMY_MIN_Y UI_END_Y
 .eqv ENEMY_MAX_Y 61
 
 # Colours
 .eqv COLOUR_BACKGROUND 0x000000     # black
 .eqv COLOUR_PLATFORM 0x964B00       # brown
 .eqv COLOUR_PLAYER 0x0000FF         # blue
-.eqv COLOUR_ENEMY 0xFF0000          # red
+.eqv COLOUR_ENEMY 0xFFA500          # orange
+.eqv COLOUR_UI_DIVIDER 0xFFFFFF     # white
+.eqv COLOUR_UI_HEALTH 0xFF0000      # red
 
 # Keyboard
 .eqv KEYSTROKE_ADDRESS 0xffff0000
@@ -85,18 +105,18 @@
 .eqv ASCII_R 0x72
 .eqv ASCII_Q 0x71
 
-# Movement
-.eqv SLEEP_DURATION 40              # sleep duration in milliseconds (TODO: set to higher value when debugging)
-.eqv PLAYER_DELTA_X 1               # x-value increment for each keypress   (TODO: increase later)
+# Movement (TODO: tweak deltas and FPS)
+.eqv SLEEP_DURATION 40              # sleep duration in milliseconds
+.eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
 .eqv PLAYER_DELTA_Y 1
 .eqv PLAYER_JUMP_APEX_TIME 15
 # Bounds to prevent player from going off-screen
 .eqv PLAYER_MIN_X 0
 .eqv PLAYER_MAX_X 61
-.eqv PLAYER_MIN_Y 0
+.eqv PLAYER_MIN_Y UI_END_Y
 .eqv PLAYER_MAX_Y 61
 
-.eqv PLAYER_HEALTH 3
+.eqv PLAYER_MAX_HEALTH 3
 
 .eqv COLLISION_NONE 100000
 .eqv COLLISION_TOP 100001
@@ -113,7 +133,7 @@ player_x: .word PLAYER_INITIAL_X
 player_y: .word PLAYER_INITIAL_Y
 player_y_velocity: .word 0
 player_jump_time: .word 0
-player_health: .word PLAYER_HEALTH
+player_health: .word PLAYER_MAX_HEALTH
 
 # Coordinates of each platform's top-left unit
 platforms_x: .word 0:NUM_PLATFORMS
@@ -122,6 +142,9 @@ platforms_y: .word 0:NUM_PLATFORMS
 # Coordinates of each enemy's top-left unit
 enemies_x: .word 0:NUM_ENEMIES
 enemies_y: .word 0:NUM_ENEMIES
+
+# Coordinates of each health icon's top-left unit (y-value is same for all)
+health_icons_x: .word UI_HEALTH_1_X, UI_HEALTH_2_X, UI_HEALTH_3_X
 
 # Debug text
 keypress_text_debug: .asciiz "key pressed: "
@@ -610,6 +633,67 @@ _draw_entities_end:
 .end_macro
 
 
+#################### UI ####################
+
+# Draws the UI divider.
+# Uses:
+    # $a0
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $v0: draw_entity
+.macro draw_ui_divider()
+    li $a0, UI_DIVIDER_Y
+    draw_entity($zero, $a0, DISPLAY_WIDTH, UI_DIVIDER_THICKNESS, COLOUR_UI_DIVIDER)
+.end_macro
+
+# Draws the health icons in the UI.
+# Uses:
+    # $v0: draw_entity
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $t4
+    # $t5
+    # $t6
+    # $t7
+    # $t8
+.macro draw_health_icons()
+    la $t8, health_icons_x
+    add $t4, $zero, $zero   # $t4 = array index i
+    # li $t5, PLAYER_MAX_HEALTH
+    load_word(player_health, $t5)
+    li $t7, UI_HEALTH_Y
+
+_draw_health_icons_loop:
+    bge $t4, PLAYER_MAX_HEALTH, _draw_health_icons_end  # while i < PLAYER_MAX_HEALTH
+
+    lw $t6, 0($t8)                      # $t6 = health_icons_x[i]
+    bge $t4, $t5, _draw_lost_health     # if i >= player_health, the life is lost (fill vacated pixels)
+
+    draw_entity($t6, $t7, UI_HEALTH_WIDTH, UI_HEALTH_HEIGHT, COLOUR_UI_HEALTH)
+    j _draw_health_icons_increment
+
+    _draw_lost_health:
+        draw_entity($t6, $t7, UI_HEALTH_WIDTH, UI_HEALTH_HEIGHT, COLOUR_BACKGROUND)
+
+_draw_health_icons_increment:
+    addi $t4, $t4, 1
+    addi $t8, $t8, 4
+    j _draw_health_icons_loop
+
+_draw_health_icons_end:
+.end_macro
+
+
 #################### MOVEMENT ####################
 
 # Adds %delta_x to the player's x-coordinate.
@@ -785,21 +869,23 @@ _platform_top_collisions_end:
 
 # Handles collisions between the player and all enemies.
 # Uses: entity_collision
-    # $t0: entity_collision, draw_entity, decrease_player_health, and macro
+    # $t0: entity_collision, draw_entity, decrease_player_health, draw_health_icons, and macro
     # $t1: entity_collision and macro
-    # $t2: entity_collision and draw_entity
-    # $t3: entity_collision and draw_entity
-    # $t4: entity_collision
-    # $t5: entity_collision
-    # $t8
+    # $t2: entity_collision, draw_entity, and draw_health_icons
+    # $t3: entity_collision, draw_entity, and draw_health_icons
+    # $t4: entity_collision and draw_health_icons
+    # $t5: entity_collision and draw_health_icons
+    # $t6: draw_health_icons
+    # $t7: draw_health_icons
+    # $t8: draw_health_icons
     # $t9
-    # $v0: entity_collision, draw_entity, and generate_random_position
+    # $v0: entity_collision, draw_entity, generate_random_position, and draw_health_icons
     # $a0: generate_random_position
     # $a1: generate_random_position
-    # $s0: draw_entity
-    # $s1: draw_entity
-    # $s2: draw_entity
-    # $s3: draw_entity
+    # $s0: draw_entity and draw_health_icons
+    # $s1: draw_entity and draw_health_icons
+    # $s2: draw_entity and draw_health_icons
+    # $s3: draw_entity and draw_health_icons
     # $s4
     # $s5
     # $s6
@@ -827,6 +913,7 @@ _for_each_enemy:
     sw $t1, 0($s5)
 
     decrease_player_health()
+    draw_health_icons()
 
 _handle_enemy_collision_end:
     addi $s6, $s6, 4
@@ -1003,19 +1090,21 @@ initialize:     # jump here on restart
     store_word(player_y, $s1)
     store_word(player_y_velocity, $zero)
     store_word(player_jump_time, $zero)
-    li $s0, PLAYER_HEALTH
+    li $s0, PLAYER_MAX_HEALTH
     store_word(player_health, $s0)
 
     initialize_enemies()
     initialize_platforms()
 
     # TODO: handle enemy collision with platform (e.g. draw platform on top of enemy)
-    draw_enemies()
     draw_platforms()
+    draw_enemies()
+    draw_ui_divider()
+    draw_health_icons()
 
 game_loop:
-    draw_enemies()
     draw_platforms()
+    draw_enemies()
 
     load_word(player_x, $a0)
     load_word(player_y, $a1)
