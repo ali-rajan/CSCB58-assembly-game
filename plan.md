@@ -11,10 +11,11 @@
   - Collision between player and enemy to lose HP
 - Enemies are obstacles moving horizontally towards player
   - Shooting lasers
-- Hearts to count HP
 - Gravity and jumping along with horizontal movement
 - Fail condition: player falls too low or all HP lost to collisions
-- Win condition: all enemies evaded (for a certain enemey count)
+- Win condition: all platforms crossed (for a certain platform count)
+- Hearts icons to count HP
+- Score bar based on number of platforms crossed
 - Restart or quit at any point with certain key presses
 
 ## Milestone 1
@@ -45,6 +46,9 @@
 - [ ] HP
   - [ ] Draw hearts
   - [ ] Decrement on enemy collision
+- [ ] Score
+  - [ ] Draw bar based on number of platforms crossed
+  - [ ] Increment on platform crossed
 - [ ] Fail condition
   - [ ] Falling too low
   - [ ] All HP lost to collisions
