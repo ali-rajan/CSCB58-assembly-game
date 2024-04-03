@@ -38,7 +38,7 @@
   - [x] Horizontal collision
 - [x] Player jumping
 - [x] Restart and quit key presses
-- [ ] Enemy collision
+- [x] Enemy collision
 
 ## Milestone 3
 
@@ -58,3 +58,10 @@
 - [ ] Scrolling platforms
 - [ ] Scrolling enemies
 - [ ] Shooting enemies
+
+## Bugs
+
+- [ ] Platform both below and above the player
+    - Player is moved below the lower platform
+- [ ] Ceiling spiderman
+  - Player stays attached to the ceiling if reached when jumping
