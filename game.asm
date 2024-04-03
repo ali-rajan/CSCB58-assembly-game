@@ -106,7 +106,7 @@
 .eqv ASCII_Q 0x71
 
 # Movement (TODO: tweak deltas and FPS)
-.eqv SLEEP_DURATION 40              # sleep duration in milliseconds
+.eqv SLEEP_DURATION 100              # sleep duration in milliseconds
 .eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
 .eqv PLAYER_DELTA_Y 1
 .eqv PLAYER_JUMP_APEX_TIME 15
@@ -115,6 +115,8 @@
 .eqv PLAYER_MAX_X 61
 .eqv PLAYER_MIN_Y UI_END_Y
 .eqv PLAYER_MAX_Y 61
+
+.eqv PLATFORM_DELTA_X 1
 
 .eqv PLAYER_MAX_HEALTH 3
 
@@ -976,6 +978,49 @@ _player_fall:
 _update_player_y_end:
 .end_macro
 
+# Uses:
+    # $t7
+    # $t8
+    # $t9
+    # $s5
+    # $s6
+    # $s7
+
+# Uses: draw_entity
+    # $s0
+    # $s1
+    # $s2
+    # $s3
+    # $t0: colour_unit
+    # $t2: colour_unit
+    # $t3: colour_unit
+    # $v0: colour_unit
+.macro update_platforms()
+    la $s7, platforms_x
+    la $s6, platforms_y
+    add $t8, $zero, $zero   # $t8 = array offset = sizeof(word) * i (for the index i)
+    li $s5, NUM_PLATFORMS
+    sll $s5, $s5, 2         # $s5 = NUM_PLATFORMS * sizeof(word)
+
+_for_each_platform:                         # $t8 = array offset
+    bge $t8, $s5, _update_platforms_end     # while i < NUM_PLATFORMS
+    add $t9, $s7, $t8
+    add $t6, $s6, $t8
+
+    lw $t7, 0($t9)  # $t7 = platforms_x[i]
+    lw $t5, 0($t6)  # $t5 = platforms_y[i]
+    subi $t7, $t7, PLATFORM_DELTA_X
+    sw $t7, 0($t9)  # %entities_x[i] = new x-value after moving
+
+    addi $t7, $t7, PLATFORM_WIDTH
+    draw_entity($t7, $t5, PLATFORM_DELTA_X, PLATFORM_THICKNESS, COLOUR_BACKGROUND)     # fill vacated pixels
+
+    addi $t8, $t8, 4
+    j _for_each_platform
+
+_update_platforms_end:
+.end_macro
+
 
 #################### GAME ####################
 
@@ -1027,7 +1072,7 @@ _decrease_player_health_end:
 _w_pressed:
     # Update player's y-velocity
     li $a0, -PLAYER_DELTA_Y
-    store_word(player_y_velocity, $a0)
+    store_word(player_y_velocity, $a0)  # TODO: this should only happen if a platform is below the player
     j _handle_keypress_end
 
 _a_pressed:
@@ -1122,6 +1167,7 @@ game_loop:
     handle_platform_collisions()     # this can update the player's y-velocity, do this before updating the y-value
     handle_enemy_collisions()
     update_player_y()   # TODO: fix ceiling spiderman bug
+    update_platforms()  # TODO: fix incorrect platform pushing for right platform collisions
 
     sleep()
     j game_loop
