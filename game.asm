@@ -944,7 +944,7 @@ _enemy_loop_end:
 
     # Prevent player from going out of bounds
     blt $s6, PLAYER_MIN_Y, _update_player_y_end
-    bgt $s6, PLAYER_MAX_Y, _update_player_y_end
+    bgt $s6, PLAYER_MAX_Y, _player_fall
     beq $s7, $zero, _update_vertical_values         # no pixels are vacated so clearing is skipped
 
     # Clear the pixels not occupied after moving the player
@@ -967,6 +967,11 @@ _update_vertical_values:
     load_word(player_jump_time, $s6)
     addi $s6, $s6, 1
     store_word(player_jump_time, $s6)
+    j _update_player_y_end
+
+_player_fall:
+    store_word(player_health, $zero)
+    j game_over
 
 _update_player_y_end:
 .end_macro
