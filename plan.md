@@ -9,10 +9,10 @@
 - Square players and enemies
   - Different colours for each type of entity
   - Collision between player and enemy to lose HP
+  - Player is a water droplet with some streak and water particle merging effects
 - Enemies are obstacles moving horizontally towards player
-  - Shooting lasers
 - Gravity and jumping along with horizontal movement
-- Fail condition: player falls too low or all HP lost to collisions
+- Fail condition: player falls into the flame pit or all HP lost to collisions
 - Win condition: all platforms crossed (for a certain platform count)
 - Hearts icons to count HP
 - Score bar based on number of platforms crossed
@@ -43,29 +43,35 @@
 
 ## Milestone 3
 
-- [ ] HP
-  - [ ] Draw hearts
-  - [ ] Decrement on enemy collision
-- [ ] Score
-  - [ ] Draw bar based on number of platforms crossed
-  - [ ] Increment on platform crossed
-- [ ] Fail condition
-  - [ ] Falling too low
-  - [ ] All HP lost to collisions
-  - [ ] Draw "game over" screen
-- [ ] Win condition
-  - [ ] All enemies evaded
-  - [ ] "You win" screen
+- [x] HP
+  - [x] Draw hearts
+  - [x] Decrement on enemy collision
+- [x] Score
+  - [x] Draw bar based on number of platforms crossed
+  - [x] Increment on platform crossed
+- [x] Fail condition
+  - [x] Falling too low
+  - [x] All HP lost to collisions
+  - [x] Draw "game over" screen
+- [x] Win condition
+  - [x] Certain number of platforms crossed
+  - [x] "You win" screen
 
 ## Milestone 4
 
-- [ ] Scrolling platforms
-- [ ] Scrolling enemies
-- [ ] Shooting enemies
+- [x] Moving platforms
+  - [x] Scrolling from left to right
+  - [x] Once fully off screen, respawning to the right
+- [x] Moving enemies
+  - [x] Scrolling from left to right
+  - [x] Once fully off screen, respawning to the right
+- [x] Start menu
 
 ## Bugs
 
 - [ ] Platform both below and above the player
     - Player is moved below the lower platform
-- [ ] Ceiling spiderman
+- [x] Ceiling spiderman
   - Player stays attached to the ceiling if reached when jumping
+- [x] Health icons when all lives lost
+  - Last health icon should be erased once HP runs out

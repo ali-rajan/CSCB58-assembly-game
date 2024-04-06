@@ -1,5 +1,7 @@
 # Pseudocode
 
+*This is not up-to-date;* it was only used for brainstorming earlier towards the start of the project.
+
 ## Setup
 
 ```
