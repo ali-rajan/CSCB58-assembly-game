@@ -9,10 +9,10 @@
 - Square players and enemies
   - Different colours for each type of entity
   - Collision between player and enemy to lose HP
+  - Player is a water droplet with some streak and water particle merging effects
 - Enemies are obstacles moving horizontally towards player
-  - ~~Shooting lasers~~
 - Gravity and jumping along with horizontal movement
-- Fail condition: player falls too low or all HP lost to collisions
+- Fail condition: player falls into the flame pit or all HP lost to collisions
 - Win condition: all platforms crossed (for a certain platform count)
 - Hearts icons to count HP
 - Score bar based on number of platforms crossed
@@ -65,18 +65,13 @@
 - [x] Moving enemies
   - [x] Scrolling from left to right
   - [x] Once fully off screen, respawning to the right
-- [ ] ~~Shooting enemies~~
 - [x] Start menu
 
 ## Bugs
 
 - [ ] Platform both below and above the player
     - Player is moved below the lower platform
-- [ ] Ceiling spiderman
+- [x] Ceiling spiderman
   - Player stays attached to the ceiling if reached when jumping
-- [x] Platform pushing player
-  - ~~When a platform collides the player on the right, vacated player pixels are not filled properly~~ (this was actually the droplet deforming effect, FPS was too low to see)
-- [x] Air jump
-  - ~~When falling off a platform without jumping, player can jump while in the air~~ (this is the delayed jump ability)
 - [x] Health icons when all lives lost
   - Last health icon should be erased once HP runs out
