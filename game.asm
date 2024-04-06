@@ -6,36 +6,40 @@
 # Student: Ali Rajan, 1009034386, rajanal1, ali.rajan@mail.utoronto.ca
 #
 # Bitmap Display Configuration:
-# - Unit width in pixels: 4 (update this as needed)
-# - Unit height in pixels: 4 (update this as needed)
-# - Display width in pixels: 256 (update this as needed)
-# - Display height in pixels: 256 (update this as needed)
+# - Unit width in pixels: 8 (update this as needed)
+# - Unit height in pixels: 8 (update this as needed)
+# - Display width in pixels: 512 (update this as needed)
+# - Display height in pixels: 512 (update this as needed)
 # - Base Address for Display: 0x10008000 ($gp)
 #
-# Which milestoneshave been reached in this submission?
+# Which milestones have been reached in this submission?
 # (See the assignment handout for descriptions of the milestones)
-# - Milestone 1/2/3/4 (choose the one the applies)
+# - Milestone 4
 #
-# Which approved features have been implemented for milestone 3?
+# Which approved features have been implemented for milestone 4?
 # (See the assignment handout for the list of additional features)
-# 1. (fill in the feature, if any)
-# 2. (fill in the feature, if any)
-# 3. (fill in the feature, if any)
-# ... (add more if necessary)
+# 1. Moving objects
+# 2. Moving platforms
+# 3. Start menu
+# 4. Animated sprites (player water droplet dilation during movement and water streak on platform right collision)
 #
 # Link to video demonstration for final submission:
 # - (insert YouTube / MyMedia / other URL here). Make sure we can view it!
 #
 # Are you OK with us sharing the video with people outside course staff?
-# - yes / no / yes, and please share this project github link as well!
+# - yes, and please share this project github link as well!
 #
 # Any additional information that the TA needs to know:
-# - (write here, if any)
+# - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped when on the last
+#   platform it was above
+# - When a platform collides the player from the right, there is a water streak effect (resembling a solid plowing
+#   through a water droplet); the smeared water particles can be recollected (it was intended that the collision would
+#   reduce HP and recollecting particles would restore HP, though this was not completed due to time constraints)
 #
 #####################################################################
 
 
-#################### CONSTANTS ####################
+######################################## CONSTANTS ########################################
 
 # Display
 .eqv DISPLAY_BASE_ADDRESS 0x10008000    # $gp
@@ -85,7 +89,7 @@
 .eqv PLATFORM_SPAWN_MAX_X 90
 .eqv PLATFORM_SPAWN_MIN_Y 8                 # UI_END_Y + PLAYER_HEIGHT
 .eqv PLATFORM_SPAWN_MAX_Y 59
-.eqv PLATFORM_SPAWN_X_PARTITION_WIDTH 5
+.eqv PLATFORM_SPAWN_X_PARTITION_WIDTH 5     # partitioning DISPLAY_WIDTH into initial platform spawn ranges
 .eqv PLATFORM_SPAWN_X_PARTITION_SPACE 12    # should be enough to prevent simultaneous top and bottom collisions
 # TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
 # .eqv PLATFORM_SPAWN_MIN_Y 28
@@ -113,7 +117,7 @@
 .eqv COLOUR_UI_MAIN_MENU_BOX 0xFFFFFF   # white
 
 # Keyboard
-.eqv KEYSTROKE_ADDRESS 0xffff0000
+.eqv KEYSTROKE_ADDRESS 0xFFFF0000
 .eqv ASCII_W 0x77
 .eqv ASCII_S 0x73
 .eqv ASCII_A 0x61
@@ -171,7 +175,7 @@ enemies_y: .word 0:NUM_ENEMIES
 # Coordinates of each health icon's top-left unit (y-value is same for all)
 health_icons_x: .word UI_HEALTH_1_X, UI_HEALTH_2_X, UI_HEALTH_3_X
 
-# Debug text
+# Debug text (TODO: remove once done debugging, or decide to keep printing debug messages throughout)
 keypress_text_debug: .asciiz "key pressed: "
 collision_top_debug: .asciiz "top collision\n"
 collision_bottom_debug: .asciiz "bottom collision\n"
@@ -188,9 +192,9 @@ newline: .asciiz "\n"
 j main
 
 
-#################### UTILITIES ####################
+######################################## UTILITIES ########################################
 
-# TODO: remove print macros once done debugging
+# TODO: remove print macros once done debugging (or decide to print debug messages throughout)
 
 # Prints the given string.
 # Parameters:
@@ -380,7 +384,7 @@ _unit_is_on_screen_end:
 .end_macro
 
 
-#################### DRAWING ####################
+######################################## DRAWING ########################################
 
 # Fills the given unit with the given colour. Does not check if the unit address given is valid.
 # Parameters:
@@ -559,7 +563,7 @@ _draw_entities_end:
 .end_macro
 
 
-#################### ENTITIES ####################
+######################################## ENTITIES ########################################
 
 # Generates random x and y-values in the given ranges and stores them in the specified registers.
 # Parameters:
@@ -705,7 +709,7 @@ _generate_x_values_loop_end:
 .end_macro
 
 
-#################### UI ####################
+######################################## UI ########################################
 
 # Draws the UI divider.
 # Uses:
@@ -846,7 +850,7 @@ _draw_menu_option_selected_end:
 .end_macro
 
 
-#################### MOVEMENT ####################
+######################################## MOVEMENT ########################################
 
 # Adds %delta_x to the player's x-coordinate.
 # Parameters:
@@ -1095,7 +1099,7 @@ _enemy_loop_end:
     add $s6, $s6, $s7
 
     # Prevent player from going out of bounds
-    blt $s6, PLAYER_MIN_Y, _update_player_y_end
+    blt $s6, PLAYER_MIN_Y, _player_reached_ceiling
     bgt $s6, PLAYER_MAX_Y, _player_fall
     beq $s7, $zero, _update_vertical_values         # no pixels are vacated so clearing is skipped
 
@@ -1124,6 +1128,10 @@ _update_vertical_values:
 _player_fall:
     store_word(player_health, $zero)
     j game_over
+
+_player_reached_ceiling:
+    li $s7, PLAYER_DELTA_Y
+    store_word(player_y_velocity, $s7)
 
 _update_player_y_end:
 .end_macro
@@ -1248,7 +1256,7 @@ _update_entities_end:
 .end_macro
 
 
-#################### GAME ####################
+######################################## GAME ########################################
 
 # Decreases the player health, handling the case where the player runs out of health.
 # Uses:
@@ -1510,8 +1518,7 @@ quit:
     syscall
 
 
-
-#################### MENU SCREENS PIXEL ART ####################
+######################################## MENU SCREENS PIXEL ART ########################################
 # Created using online pixel art drawing tool with image to MARS syntax converter
 
 # Uses:
