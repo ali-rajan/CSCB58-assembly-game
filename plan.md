@@ -48,13 +48,13 @@
   - [x] Decrement on enemy collision
 - [ ] Score
   - [ ] Draw bar based on number of platforms crossed
-  - [ ] Increment on platform crossed
+  - [x] Increment on platform crossed
 - [x] Fail condition
   - [x] Falling too low
   - [x] All HP lost to collisions
   - [ ] Draw "game over" screen
 - [ ] Win condition
-  - [ ] All enemies evaded
+  - [x] Certain number of platforms crossed
   - [ ] "You win" screen
 
 ## Milestone 4
