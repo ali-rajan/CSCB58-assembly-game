@@ -49,7 +49,7 @@
 # UI dimensions and positions in units (not pixels) (TODO: remove unused constants)
 .eqv UI_HEALTH_WIDTH 2
 .eqv UI_HEALTH_HEIGHT 2
-.eqv UI_SCORE_BAR_UNIT_WIDTH 1          # framebuffer units per score point
+.eqv UI_SCORE_BAR_UNIT_WIDTH 1          # framebuffer units to draw per score point
 .eqv UI_SCORE_BAR_HEIGHT 2
 
 .eqv UI_HEALTH_Y 1
