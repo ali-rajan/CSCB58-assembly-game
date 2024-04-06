@@ -65,7 +65,7 @@
 - [x] Moving enemies
   - [x] Scrolling from left to right
   - [x] Once fully off screen, respawning to the right
-~~- [ ] Shooting enemies~~
+- [ ] ~~Shooting enemies~~
 - [ ] Start menu
 
 ## Bugs
