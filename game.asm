@@ -49,12 +49,12 @@
 # UI dimensions and positions in units (not pixels) (TODO: remove unused constants)
 .eqv UI_HEALTH_WIDTH 2
 .eqv UI_HEALTH_HEIGHT 2
-# .eqv UI_SCORE_BAR_UNIT_WIDTH 1
-# .eqv UI_SCORE_BAR_HEIGHT 2
+.eqv UI_SCORE_BAR_UNIT_WIDTH 1          # framebuffer units per score point
+.eqv UI_SCORE_BAR_HEIGHT 2
 
 .eqv UI_HEALTH_Y 1
-# .eqv UI_SCORE_BAR_START_X 62            # 2nd last column
-# .eqv UI_SCORE_BAR_Y 1
+.eqv UI_SCORE_BAR_START_X 43
+.eqv UI_SCORE_BAR_Y 1
 .eqv UI_DIVIDER_Y 4                     # max(UI_HEALTH_HEIGHT, UI_SCORE_BAR_HEIGHT) + padding
 .eqv UI_DIVIDER_THICKNESS 1
 .eqv UI_END_Y 5                         # UI_DIVIDER_Y + UI_DIVIDER_THICKNESS
@@ -88,7 +88,7 @@
 .eqv ENEMY_SPAWN_MIN_X 64
 .eqv ENEMY_SPAWN_MAX_X 100
 .eqv ENEMY_SPAWN_X_PARTITION_WIDTH 18
-.eqv ENEMY_SPAWN_X_PARTITION_SPACE 3
+.eqv ENEMY_SPAWN_X_PARTITION_SPACE 40
 # TODO: adjust these so enemies aren't redundant because they're out of reach vertically
 .eqv ENEMY_SPAWN_MIN_Y UI_END_Y
 .eqv ENEMY_SPAWN_MAX_Y 57
@@ -100,6 +100,7 @@
 .eqv COLOUR_ENEMY 0xFFA500          # orange
 .eqv COLOUR_UI_DIVIDER 0xFFFFFF     # white
 .eqv COLOUR_UI_HEALTH 0xFF0000      # red
+.eqv COLOUR_UI_SCORE_BAR 0x6497B1   # blue variant
 
 # Keyboard
 .eqv KEYSTROKE_ADDRESS 0xffff0000
@@ -124,7 +125,7 @@
 .eqv ENEMY_DELTA_X 2
 
 .eqv PLAYER_MAX_HEALTH 3
-.eqv WINNING_SCORE 10       # number of platforms to cross
+.eqv WINNING_SCORE 20       # number of platforms to cross
 
 .eqv COLLISION_NONE 100000
 .eqv COLLISION_TOP 100001
@@ -618,7 +619,7 @@ _generate_values_loop_end:
     generate_random_values(%entities_y, %num_entities, %min_y, %max_y)
 
     la $t4, %entities_x
-    add $t0, $zero, $zero   # lower bound for partition
+    addi $t0, $zero, %partition_x_space   # lower bound for partition
     add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
     li $t3, %num_entities
     sll $t3, $t3, 2         # $t3 = %num_entries * sizeof(word)
@@ -747,6 +748,35 @@ _draw_health_icons_increment:
     j _draw_health_icons_loop
 
 _draw_health_icons_end:
+.end_macro
+
+# Draws the score bar.
+# Uses:
+    # $v0: draw_entity
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $t4
+    # $t5
+    # $t6
+.macro draw_score_bar()
+    li $t4, UI_SCORE_BAR_START_X            # current score bar column's x-value
+    li $t5, UI_SCORE_BAR_Y
+    load_word(score, $t6)
+    addi $t6, $t6, UI_SCORE_BAR_START_X     # score bar column x-value upper bound
+
+_for_each_score_point:
+    bge $t4, $t6, _draw_score_bar_end
+    draw_entity($t4, $t5, UI_SCORE_BAR_UNIT_WIDTH, UI_SCORE_BAR_HEIGHT, COLOUR_UI_SCORE_BAR)
+
+    addi $t4, $t4, 1
+    j _for_each_score_point
+
+_draw_score_bar_end:
 .end_macro
 
 
@@ -1125,6 +1155,7 @@ _update_entities_end:
 .macro update_platforms()
     update_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_DELTA_X, PLATFORM_WIDTH, PLATFORM_THICKNESS, PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y)
     increase_score($v0)     # increase score by $v0 = number of platforms crossed
+    draw_score_bar()
 .end_macro
 
 # Updates the position of each enemies. Wraps update_entities for enemies specifically.
@@ -1295,10 +1326,9 @@ initialize:     # jump here on restart
     initialize_enemies()
     initialize_platforms()
 
-    draw_platforms()
-    draw_enemies()
     draw_ui_divider()
     draw_health_icons()
+    draw_score_bar()
 
 game_loop:
     draw_platforms()
