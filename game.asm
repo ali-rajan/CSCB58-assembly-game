@@ -124,6 +124,7 @@
 .eqv ENEMY_DELTA_X 2
 
 .eqv PLAYER_MAX_HEALTH 3
+.eqv WINNING_SCORE 10       # number of platforms to cross
 
 .eqv COLLISION_NONE 100000
 .eqv COLLISION_TOP 100001
@@ -141,6 +142,7 @@ player_y: .word PLAYER_INITIAL_Y
 player_y_velocity: .word 0
 player_jump_time: .word 0
 player_health: .word PLAYER_MAX_HEALTH
+score: .word 0  # number of platforms crossed
 
 # Coordinates of each platform's top-left unit
 platforms_x: .word 0:NUM_PLATFORMS
@@ -160,6 +162,7 @@ collision_bottom_debug: .asciiz "bottom collision\n"
 collision_left_debug: .asciiz "left collision\n"
 collision_right_debug: .asciiz "right collision\n"
 health_lost_debug: .asciiz "lives remaining: "
+score_increase_debug: .asciiz "score: "
 newline: .asciiz "\n"
 
 .text
@@ -1043,6 +1046,8 @@ _update_player_y_end:
     # %entity_spawn_max_x: maximum x-value to respawn at once off-screen
     # %entity_spawn_min_y: minimum y-value to respawn at once off-screen
     # %entity_spawn_max_y: maximum y-value to respawn at once off-screen
+# Returns:
+    # $v0: number of entities respawned after going off-screen during the current call
 # Uses:
     # $t0: draw_entity
     # $t2: draw_entity
@@ -1054,6 +1059,7 @@ _update_player_y_end:
     # $s1: draw_entity
     # $s2: draw_entity
     # $s3: draw_entity
+    # $s4
     # $s5
     # $s6
     # $s7
@@ -1066,6 +1072,7 @@ _update_player_y_end:
     add $t8, $zero, $zero   # $t8 = array offset = sizeof(word) * i (for the index i)
     li $s5, %num_entities
     sll $s5, $s5, 2         # $s5 = %num_entities * sizeof(word)
+    add $s4, $zero, $zero   # number of entities gone off-screen
 
 _for_each_entity:                           # $t8 = array offset
     bge $t8, $s5, _update_entities_end      # while i < %num_entities
@@ -1084,20 +1091,61 @@ _for_each_entity:                           # $t8 = array offset
     generate_random_position(%entity_spawn_min_x, %entity_spawn_max_x, %entity_spawn_min_y, %entity_spawn_max_y, $t7, $t5)
     sw $t7, 0($t9)
     sw $t5, 0($t6)
+    addi $s4, $s4, 1
 
 _entity_off_screen_check_end:
     addi $t8, $t8, 4
     j _for_each_entity
 
 _update_entities_end:
+    move $v0, $s4   # return number of entities gone off-screen
 .end_macro
 
-# Updates the position of each platform. Wraps update_entities for platforms specifically.
+# Updates the position of each platform, keeping track of the number of platforms crossed by the player. Wraps
+# update_entities for platforms specifically.
+# Uses:
+    # $t0: update_entities and increase_score
+    # $t1: increase_score
+    # $t2: update_entities
+    # $t3: update_entities
+    # $t7: update_entities
+    # $t8: update_entities
+    # $t9: update_entities
+    # $s0: update_entities
+    # $s1: update_entities
+    # $s2: update_entities
+    # $s3: update_entities
+    # $s4: update_entities
+    # $s5: update_entities
+    # $s6: update_entities
+    # $s7: update_entities
+    # $a0: update_entities
+    # $a1: update_entities
+    # $v0: update_entities
 .macro update_platforms()
     update_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_DELTA_X, PLATFORM_WIDTH, PLATFORM_THICKNESS, PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y)
+    increase_score($v0)     # increase score by $v0 = number of platforms crossed
 .end_macro
 
 # Updates the position of each enemies. Wraps update_entities for enemies specifically.
+# Uses:
+    # $t0: update_entities
+    # $t2: update_entities
+    # $t3: update_entities
+    # $t7: update_entities
+    # $t8: update_entities
+    # $t9: update_entities
+    # $s0: update_entities
+    # $s1: update_entities
+    # $s2: update_entities
+    # $s3: update_entities
+    # $s4: update_entities
+    # $s5: update_entities
+    # $s6: update_entities
+    # $s7: update_entities
+    # $a0: update_entities
+    # $a1: update_entities
+    # $v0: update_entities
 .macro update_enemies()
     update_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_DELTA_X, ENEMY_WIDTH, ENEMY_HEIGHT, ENEMY_SPAWN_MIN_X, ENEMY_SPAWN_MAX_X, ENEMY_SPAWN_MIN_Y, ENEMY_SPAWN_MAX_Y)
 .end_macro
@@ -1123,6 +1171,24 @@ _update_entities_end:
     ble $t1, $zero, game_over
 
 _decrease_player_health_end:
+.end_macro
+
+# Increases the score, handling the case where the winning score is reached (i.e. the game is won).
+# Parameters:
+    # %increment_reg: register storing the score increment
+# Uses:
+    # $t0: store_word
+    # $t1
+.macro increase_score(%increment_reg)
+    load_word(score, $t1)
+    add $t1, $t1, %increment_reg
+    store_word(score, $t1)
+
+    print_str(score_increase_debug)
+    print_int($t1)
+    print_str(newline)
+
+    bge $t1, WINNING_SCORE, game_won
 .end_macro
 
 # Handles the keypresses for movement, restarting, and quitting the game. For player movement, the original player
@@ -1218,12 +1284,13 @@ initialize:     # jump here on restart
 
     li $s0, PLAYER_INITIAL_X
     li $s1, PLAYER_INITIAL_Y
+    li $s2, PLAYER_MAX_HEALTH
     store_word(player_x, $s0)
     store_word(player_y, $s1)
     store_word(player_y_velocity, $zero)
     store_word(player_jump_time, $zero)
-    li $s0, PLAYER_MAX_HEALTH
-    store_word(player_health, $s0)
+    store_word(player_health, $s2)
+    store_word(score, $zero)
 
     initialize_enemies()
     initialize_platforms()
@@ -1256,6 +1323,12 @@ game_over:
     handle_restart_quit_keypress()
     sleep()
     j game_over
+
+game_won:
+    fill_background(COLOUR_PLAYER)
+    handle_restart_quit_keypress()
+    sleep()
+    j game_won
 
 quit:
     # Exit
