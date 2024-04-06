@@ -423,75 +423,6 @@ _draw_for_each_y:
 _draw_entity_end:
 .end_macro
 
-
-#################### ENTITIES ####################
-
-# Generates random x and y-values in the given ranges and stores them in the specified registers.
-# Parameters:
-    # %min_x: minimum possible x-value
-    # %max_x: maximum possible x-value
-    # %min_y: minimum possible y-value
-    # %max_y: maximum possible y-value
-    # %dest_x_reg: register to store the x-value in
-    # %dest_y_reg: register to store the y-value in
-# Uses:
-    # $a0: random_integer
-    # $a1: random_integer
-    # $v0: random_integer
-    # %dest_x_reg
-    # %dest_y_reg
-.macro generate_random_position(%min_x, %max_x, %min_y, %max_y, %dest_x_reg, %dest_y_reg)
-    random_integer(%min_x, %max_x)
-    move %dest_x_reg, $v0
-    random_integer(%min_y, %max_y)
-    move %dest_y_reg, $v0
-.end_macro
-
-# Randomly generates x and y-values for all enemies based on the given ranges, storing them in the given arrays.
-# Parameters:
-    # %entities_x: the array of x-values
-    # %entities_y: the array of y-values
-    # %num_entities: the number of entities (an immediate value)
-    # %min_x: minimum possible x-value
-    # %max_x: maximum possible x-value
-    # %min_y: minimum possible y-value
-    # %max_y: maximum possible y-value
-# Uses:
-    # $t0
-    # $t1
-    # $t2
-    # $t3
-    # $t4
-    # $t5
-    # $t6
-    # $t7
-    # $a0: generate_random_position
-    # $a1: generate_random_position
-    # $v0: generate_random_position
-.macro initialize_entities(%entities_x, %entities_y, %num_entities, %min_x, %max_x, %min_y, %max_y)
-    # TODO: maybe separate this into a macro that randomly fills one array at a time (could be useful for platform
-    # initializing where only y-values are randomized)
-    la $t0, %entities_x
-    la $t1, %entities_y
-    add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
-    li $t3, %num_entities
-    sll $t3, $t3, 2         # $t3 = %num_entities * sizeof(word)
-
-_initialize_entities_loop:                  # $t2 = array offset
-    bge $t2, $t3, _initialize_entities_end  # while i < %num_entities
-    add $t4, $t0, $t2
-    add $t5, $t1, $t2
-
-    generate_random_position(%min_x, %max_x, %min_y, %max_y, $t6, $t7)
-    sw $t6, 0($t4)  # %entities_x[i] = random x-value
-    sw $t7, 0($t5)  # %entities_y[i] = random y-value
-
-    addi $t2, $t2, 4
-    j _initialize_entities_loop
-
-_initialize_entities_end:
-.end_macro
-
 # TODO: save $s0 - $s6 in stack if this is called elsewhere that uses those registers
 # Draws all the entities based on their coordinates stored in the given arrays, their given dimensions, and the colour
 # specified.
@@ -538,6 +469,122 @@ _draw_entities_loop:
     j _draw_entities_loop
 
 _draw_entities_end:
+.end_macro
+
+# Draws all the platforms based on their coordinates stored in platforms_x and platforms_y. Wraps draw_entities
+# specifically for drawing platforms.
+# Uses:
+    # $t4: draw_entities
+    # $t5: draw_entities
+    # $t6: draw_entities
+    # $t7: draw_entities
+    # $t8: draw_entities
+    # $t9: draw_entities
+    # $s0: draw_entities
+    # $s1: draw_entities
+    # $s2: draw_entities
+    # $s3: draw_entities
+    # $t0: draw_entities
+    # $t2: draw_entities
+    # $t3: draw_entities
+    # $v0: draw_entities
+.macro draw_platforms()
+    draw_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_WIDTH, PLATFORM_THICKNESS, COLOUR_PLATFORM)
+.end_macro
+
+# Draws all the enemies based on their coordinates stored in enemies_x and enemies_y. Wraps draw_entities specifically
+# for drawing enemies.
+# Uses:
+    # $t4: draw_entities
+    # $t5: draw_entities
+    # $t6: draw_entities
+    # $t7: draw_entities
+    # $t8: draw_entities
+    # $t9: draw_entities
+    # $s0: draw_entities
+    # $s1: draw_entities
+    # $s2: draw_entities
+    # $s3: draw_entities
+    # $t0: draw_entities
+    # $t2: draw_entities
+    # $t3: draw_entities
+    # $v0: draw_entities
+.macro draw_enemies()
+    draw_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_WIDTH, ENEMY_HEIGHT, COLOUR_ENEMY)
+.end_macro
+
+
+#################### ENTITIES ####################
+
+# Generates random x and y-values in the given ranges and stores them in the specified registers.
+# Parameters:
+    # %min_x: minimum possible x-value
+    # %max_x: maximum possible x-value
+    # %min_y: minimum possible y-value
+    # %max_y: maximum possible y-value
+    # %dest_x_reg: register to store the x-value in
+    # %dest_y_reg: register to store the y-value in
+# Uses:
+    # $a0: random_integer
+    # $a1: random_integer
+    # $v0: random_integer
+    # %dest_x_reg
+    # %dest_y_reg
+.macro generate_random_position(%min_x, %max_x, %min_y, %max_y, %dest_x_reg, %dest_y_reg)
+    random_integer(%min_x, %max_x)
+    move %dest_x_reg, $v0
+    random_integer(%min_y, %max_y)
+    move %dest_y_reg, $v0
+.end_macro
+
+# Generates random integers in the specified range and stores them in the given array.
+# Uses:
+    # $t0
+    # $t2
+    # $t3
+    # $t4
+    # $a0: random_integer
+    # $a1: random_integer
+    # $v0: random_integer
+.macro generate_random_values(%array, %num_entries, %min, %max)
+    la $t0, %array
+    add $t2, $zero, $zero   # $t2 = array offset = sizeof(word) * i (for the index i)
+    li $t3, %num_entries
+    sll $t3, $t3, 2         # $t3 = %num_entries * sizeof(word)
+
+_generate_values_loop:                          # $t2 = array offset
+    bge $t2, $t3, _generate_values_loop_end     # while i < %num_entries
+    add $t4, $t0, $t2
+
+    random_integer(%min, %max)
+    sw $v0, 0($t4)  # %array[i] = random value
+
+    addi $t2, $t2, 4
+    j _generate_values_loop
+
+_generate_values_loop_end:
+.end_macro
+
+# Randomly generates x and y-values for all enemies based on the given ranges, storing them in the given arrays.
+# Parameters:
+    # %entities_x: the array of x-values
+    # %entities_y: the array of y-values
+    # %num_entities: the number of entities (an immediate value)
+    # %min_x: minimum possible x-value
+    # %max_x: maximum possible x-value
+    # %min_y: minimum possible y-value
+    # %max_y: maximum possible y-value
+# Uses:
+    # $t0: generate_random_values
+    # $t2: generate_random_values
+    # $t3: generate_random_values
+    # $t4: generate_random_values
+    # $a0: generate_random_values
+    # $a1: generate_random_values
+    # $v0: generate_random_values
+.macro initialize_entities(%entities_x, %entities_y, %num_entities, %min_x, %max_x, %min_y, %max_y)
+    generate_random_values(%entities_x, %num_entities, %min_x, %max_x)
+    generate_random_values(%entities_y, %num_entities, %min_y, %max_y)
 .end_macro
 
 # Randomly generates x and y-values for all platforms except the first, storing them in platforms_x and platforms_y
@@ -590,48 +637,6 @@ _draw_entities_end:
     # $v0: initialize_entities
 .macro initialize_enemies()
     initialize_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_MIN_X, ENEMY_MAX_X, ENEMY_MIN_Y, ENEMY_MAX_Y)
-.end_macro
-
-# Draws all the platforms based on their coordinates stored in platforms_x and platforms_y. Wraps draw_entities
-# specifically for drawing platforms.
-# Uses:
-    # $t4: draw_entities
-    # $t5: draw_entities
-    # $t6: draw_entities
-    # $t7: draw_entities
-    # $t8: draw_entities
-    # $t9: draw_entities
-    # $s0: draw_entities
-    # $s1: draw_entities
-    # $s2: draw_entities
-    # $s3: draw_entities
-    # $t0: draw_entities
-    # $t2: draw_entities
-    # $t3: draw_entities
-    # $v0: draw_entities
-.macro draw_platforms()
-    draw_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_WIDTH, PLATFORM_THICKNESS, COLOUR_PLATFORM)
-.end_macro
-
-# Draws all the enemies based on their coordinates stored in enemies_x and enemies_y. Wraps draw_entities specifically
-# for drawing enemies.
-# Uses:
-    # $t4: draw_entities
-    # $t5: draw_entities
-    # $t6: draw_entities
-    # $t7: draw_entities
-    # $t8: draw_entities
-    # $t9: draw_entities
-    # $s0: draw_entities
-    # $s1: draw_entities
-    # $s2: draw_entities
-    # $s3: draw_entities
-    # $t0: draw_entities
-    # $t2: draw_entities
-    # $t3: draw_entities
-    # $v0: draw_entities
-.macro draw_enemies()
-    draw_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_WIDTH, ENEMY_HEIGHT, COLOUR_ENEMY)
 .end_macro
 
 
@@ -1015,7 +1020,7 @@ _for_each_platform:                         # $t8 = array offset
     subi $t7, $t7, PLATFORM_DELTA_X
     sw $t7, 0($t9)  # %entities_x[i] = new x-value after moving
 
-    bge $t7, -PLATFORM_WIDTH, _platform_off_screen_check_end
+    bge $t7, -PLATFORM_WIDTH, _platform_off_screen_check_end    # if platform is off-screen, generate new position
     generate_random_position(PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y, $t7, $t5)
     sw $t7, 0($t9)
     sw $t5, 0($t6)
