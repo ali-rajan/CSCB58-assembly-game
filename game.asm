@@ -88,7 +88,7 @@
 .eqv PLATFORM_SPAWN_MIN_X 64
 .eqv PLATFORM_SPAWN_MAX_X 90
 .eqv PLATFORM_SPAWN_MIN_Y 8                 # UI_END_Y + PLAYER_HEIGHT
-.eqv PLATFORM_SPAWN_MAX_Y 59
+.eqv PLATFORM_SPAWN_MAX_Y 59                # slightly above the flame pit
 .eqv PLATFORM_SPAWN_X_PARTITION_WIDTH 5     # partitioning DISPLAY_WIDTH into initial platform spawn ranges
 .eqv PLATFORM_SPAWN_X_PARTITION_SPACE 12    # should be enough to prevent simultaneous top and bottom collisions
 # TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
@@ -103,7 +103,7 @@
 .eqv ENEMY_SPAWN_X_PARTITION_SPACE 40
 # TODO: adjust these so enemies aren't redundant because they're out of reach vertically
 .eqv ENEMY_SPAWN_MIN_Y UI_END_Y
-.eqv ENEMY_SPAWN_MAX_Y 57
+.eqv ENEMY_SPAWN_MAX_Y 57                   # slightly above the flame pit
 
 # Colours
 .eqv COLOUR_BACKGROUND 0x000000         # black
@@ -135,7 +135,7 @@
 .eqv PLAYER_MIN_X 0
 .eqv PLAYER_MAX_X 61
 .eqv PLAYER_MIN_Y UI_END_Y
-.eqv PLAYER_MAX_Y 61
+.eqv PLAYER_MAX_Y 58
 
 .eqv PLATFORM_DELTA_X 1
 .eqv ENEMY_DELTA_X 2
@@ -1462,6 +1462,7 @@ handle_menu_input:
 
 initialize:     # jump here on restart
     fill_background(COLOUR_BACKGROUND)
+    jal draw_flame_pit
 
     li $s0, PLAYER_INITIAL_X
     li $s1, PLAYER_INITIAL_Y
@@ -1518,7 +1519,7 @@ quit:
     syscall
 
 
-######################################## MENU SCREENS PIXEL ART ########################################
+######################################## PIXEL ART ########################################
 # Created using online pixel art drawing tool with image to MARS syntax converter
 
 # Uses:
@@ -4714,5 +4715,184 @@ draw_you_won_screen:
     sw $t2, 12232($t0)
     sw $t2, 12244($t0)
     sw $t2, 12260($t0)
+
+    jr $ra
+
+# Uses:
+    # $t0
+    # $t1
+    # $t2
+    # $t3
+    # $t4
+    # $t5
+draw_flame_pit:
+    la $t0, DISPLAY_BASE_ADDRESS
+    # Various fire colours
+    li $t1, 0xdc2f02
+    li $t2, 0xf48c06
+    li $t3, 0xffba08
+    li $t4, 0xfaa307
+    li $t5, 0xe85d04
+
+    sw $t1, 15616($t0)
+    sw $t1, 15624($t0)
+    sw $t1, 15632($t0)
+    sw $t1, 15640($t0)
+    sw $t1, 15648($t0)
+    sw $t1, 15656($t0)
+    sw $t1, 15664($t0)
+    sw $t1, 15672($t0)
+    sw $t1, 15680($t0)
+    sw $t1, 15688($t0)
+    sw $t1, 15696($t0)
+    sw $t1, 15704($t0)
+    sw $t1, 15712($t0)
+    sw $t1, 15720($t0)
+    sw $t1, 15728($t0)
+    sw $t1, 15736($t0)
+    sw $t1, 15744($t0)
+    sw $t1, 15752($t0)
+    sw $t1, 15760($t0)
+    sw $t1, 15768($t0)
+    sw $t1, 15776($t0)
+    sw $t1, 15784($t0)
+    sw $t1, 15792($t0)
+    sw $t1, 15800($t0)
+    sw $t1, 15808($t0)
+    sw $t1, 15816($t0)
+    sw $t1, 15824($t0)
+    sw $t1, 15832($t0)
+    sw $t1, 15840($t0)
+    sw $t1, 15848($t0)
+    sw $t1, 15856($t0)
+    sw $t1, 15864($t0)
+    sw $t2, 15872($t0)
+    sw $t1, 15876($t0)
+    sw $t2, 15880($t0)
+    sw $t1, 15884($t0)
+    sw $t2, 15888($t0)
+    sw $t1, 15892($t0)
+    sw $t2, 15896($t0)
+    sw $t1, 15900($t0)
+    sw $t2, 15904($t0)
+    sw $t1, 15908($t0)
+    sw $t2, 15912($t0)
+    sw $t1, 15916($t0)
+    sw $t2, 15920($t0)
+    sw $t1, 15924($t0)
+    sw $t2, 15928($t0)
+    sw $t1, 15932($t0)
+    sw $t2, 15936($t0)
+    sw $t1, 15940($t0)
+    sw $t2, 15944($t0)
+    sw $t1, 15948($t0)
+    sw $t2, 15952($t0)
+    sw $t1, 15956($t0)
+    sw $t2, 15960($t0)
+    sw $t1, 15964($t0)
+    sw $t2, 15968($t0)
+    sw $t1, 15972($t0)
+    sw $t2, 15976($t0)
+    sw $t1, 15980($t0)
+    sw $t2, 15984($t0)
+    sw $t1, 15988($t0)
+    sw $t2, 15992($t0)
+    sw $t1, 15996($t0)
+    sw $t2, 16000($t0)
+    sw $t1, 16004($t0)
+    sw $t2, 16008($t0)
+    sw $t1, 16012($t0)
+    sw $t2, 16016($t0)
+    sw $t1, 16020($t0)
+    sw $t2, 16024($t0)
+    sw $t1, 16028($t0)
+    sw $t2, 16032($t0)
+    sw $t1, 16036($t0)
+    sw $t2, 16040($t0)
+    sw $t1, 16044($t0)
+    sw $t2, 16048($t0)
+    sw $t1, 16052($t0)
+    sw $t2, 16056($t0)
+    sw $t1, 16060($t0)
+    sw $t2, 16064($t0)
+    sw $t1, 16068($t0)
+    sw $t2, 16072($t0)
+    sw $t1, 16076($t0)
+    sw $t2, 16080($t0)
+    sw $t1, 16084($t0)
+    sw $t2, 16088($t0)
+    sw $t1, 16092($t0)
+    sw $t2, 16096($t0)
+    sw $t1, 16100($t0)
+    sw $t2, 16104($t0)
+    sw $t1, 16108($t0)
+    sw $t2, 16112($t0)
+    sw $t1, 16116($t0)
+    sw $t2, 16120($t0)
+    sw $t1, 16124($t0)
+    sw $t3, 16128($t0)
+    sw $t3, 16132($t0)
+    sw $t3, 16136($t0)
+    sw $t4, 16140($t0)
+    sw $t3, 16144($t0)
+    sw $t4, 16148($t0)
+    sw $t3, 16152($t0)
+    sw $t5, 16156($t0)
+    sw $t3, 16160($t0)
+    sw $t4, 16164($t0)
+    sw $t3, 16168($t0)
+    sw $t3, 16172($t0)
+    sw $t3, 16176($t0)
+    sw $t4, 16180($t0)
+    sw $t3, 16184($t0)
+    sw $t4, 16188($t0)
+    sw $t3, 16192($t0)
+    sw $t3, 16196($t0)
+    sw $t3, 16200($t0)
+    sw $t4, 16204($t0)
+    sw $t3, 16208($t0)
+    sw $t3, 16212($t0)
+    sw $t3, 16216($t0)
+    sw $t4, 16220($t0)
+    sw $t3, 16224($t0)
+    sw $t1, 16228($t0)
+    sw $t3, 16232($t0)
+    sw $t4, 16236($t0)
+    sw $t3, 16240($t0)
+    sw $t4, 16244($t0)
+    sw $t3, 16248($t0)
+    sw $t3, 16252($t0)
+    sw $t3, 16256($t0)
+    sw $t4, 16260($t0)
+    sw $t3, 16264($t0)
+    sw $t4, 16268($t0)
+    sw $t3, 16272($t0)
+    sw $t1, 16276($t0)
+    sw $t3, 16280($t0)
+    sw $t4, 16284($t0)
+    sw $t3, 16288($t0)
+    sw $t3, 16292($t0)
+    sw $t3, 16296($t0)
+    sw $t3, 16300($t0)
+    sw $t3, 16304($t0)
+    sw $t4, 16308($t0)
+    sw $t3, 16312($t0)
+    sw $t4, 16316($t0)
+    sw $t3, 16320($t0)
+    sw $t5, 16324($t0)
+    sw $t3, 16328($t0)
+    sw $t4, 16332($t0)
+    sw $t3, 16336($t0)
+    sw $t3, 16340($t0)
+    sw $t3, 16344($t0)
+    sw $t4, 16348($t0)
+    sw $t3, 16352($t0)
+    sw $t4, 16356($t0)
+    sw $t3, 16360($t0)
+    sw $t4, 16364($t0)
+    sw $t3, 16368($t0)
+    sw $t4, 16372($t0)
+    sw $t3, 16376($t0)
+    sw $t3, 16380($t0)
 
     jr $ra
