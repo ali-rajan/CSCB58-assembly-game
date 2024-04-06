@@ -49,6 +49,7 @@
 # UI dimensions and positions in units (not pixels) (TODO: remove unused constants)
 .eqv UI_HEALTH_WIDTH 2
 .eqv UI_HEALTH_HEIGHT 2
+.eqv UI_TOTAL_HEALTH_WIDTH 8            # width of entire health icon area
 .eqv UI_SCORE_BAR_UNIT_WIDTH 1          # framebuffer units to draw per score point
 .eqv UI_SCORE_BAR_HEIGHT 2
 .eqv UI_MAIN_MENU_START_BOX_WIDTH 28
@@ -122,7 +123,7 @@
 .eqv ASCII_SPACE 0x20
 
 # Movement (TODO: tweak deltas and FPS)
-.eqv SLEEP_DURATION 17              # sleep duration in milliseconds
+.eqv SLEEP_DURATION 40              # sleep duration in milliseconds
 .eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
 .eqv PLAYER_DELTA_Y 1
 .eqv PLAYER_JUMP_APEX_TIME 15
@@ -762,6 +763,24 @@ _draw_health_icons_increment:
     j _draw_health_icons_loop
 
 _draw_health_icons_end:
+.end_macro
+
+# Erases all health icons. Used when the game is over.
+# Uses:
+    # $a0
+    # $a1
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $v0: draw_entity
+.macro erase_health_icons()
+    li $a0, UI_HEALTH_1_X
+    li $a1, UI_HEALTH_Y
+    draw_entity($a0, $a1, UI_TOTAL_HEALTH_WIDTH, UI_HEALTH_HEIGHT, COLOUR_BACKGROUND)
 .end_macro
 
 # Draws the score bar.
@@ -1472,14 +1491,13 @@ game_loop:
     j game_loop
 
 game_over:
-    # fill_background(COLOUR_ENEMY)
     jal draw_game_over_screen
+    erase_health_icons()
     handle_restart_quit_keypress()
     sleep()
     j game_over
 
 game_won:
-    # fill_background(COLOUR_PLAYER)
     jal draw_you_won_screen
     handle_restart_quit_keypress()
     sleep()
