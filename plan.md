@@ -46,14 +46,14 @@
 - [x] HP
   - [x] Draw hearts
   - [x] Decrement on enemy collision
-- [ ] Score
-  - [ ] Draw bar based on number of platforms crossed
+- [x] Score
+  - [x] Draw bar based on number of platforms crossed
   - [x] Increment on platform crossed
 - [x] Fail condition
   - [x] Falling too low
   - [x] All HP lost to collisions
   - [ ] Draw "game over" screen
-- [ ] Win condition
+- [x] Win condition
   - [x] Certain number of platforms crossed
   - [ ] "You win" screen
 
