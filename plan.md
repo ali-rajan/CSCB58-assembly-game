@@ -62,10 +62,11 @@
 - [x] Moving platforms
   - [x] Scrolling from left to right
   - [x] Once fully off screen, respawning to the right
-- [ ] Moving enemies
-  - [ ] Scrolling from left to right
-  - [ ] Once fully off screen, respawning to the right
-- [ ] Shooting enemies
+- [x] Moving enemies
+  - [x] Scrolling from left to right
+  - [x] Once fully off screen, respawning to the right
+~~- [ ] Shooting enemies~~
+- [ ] Start menu
 
 ## Bugs
 
