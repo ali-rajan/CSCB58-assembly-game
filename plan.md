@@ -74,9 +74,9 @@
     - Player is moved below the lower platform
 - [ ] Ceiling spiderman
   - Player stays attached to the ceiling if reached when jumping
-- [ ] Platform pushing player
-  - When a platform collides the player on the right, vacated player pixels are not filled properly
+- [x] Platform pushing player
+  - ~~When a platform collides the player on the right, vacated player pixels are not filled properly~~ (this was actually the droplet deforming effect, FPS was too low to see)
 - [ ] Air jump
   - When falling off a platform without jumping, player can jump while in the air
-- [ ] Health icons when all lives lost
+- [x] Health icons when all lives lost
   - Last health icon should be erased once HP runs out
