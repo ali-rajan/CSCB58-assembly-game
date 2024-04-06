@@ -978,28 +978,26 @@ _player_fall:
 _update_player_y_end:
 .end_macro
 
+# Updates the position of each platform, randomly generating a new position once a platform is completely off-screen to
+# the left. The vacated pixels for each platform are filled with the background colour, but the platform is not
+# redrawn.
 # Uses:
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
     # $t7
     # $t8
     # $t9
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
     # $s5
     # $s6
     # $s7
-
-# Uses: draw_entity
-    # $s0
-    # $s1
-    # $s2
-    # $s3
-    # $t0: colour_unit
-    # $t2: colour_unit
-    # $t3: colour_unit
-    # $v0: colour_unit
-
-# Uses: generate_random_position
-    # $a0: random_integer
-    # $a1: random_integer
-    # $v0: random_integer
+    # $a0: generate_random_position
+    # $a1: generate_random_position
+    # $v0: generate_random_position and draw_entity
 .macro update_platforms()
     la $s7, platforms_x
     la $s6, platforms_y
