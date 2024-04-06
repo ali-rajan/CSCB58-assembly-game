@@ -30,6 +30,7 @@
 # - yes, and please share this project github link as well!
 #
 # Any additional information that the TA needs to know:
+# - An extra screen is show when the player quits (by pressing "q")
 # - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped when on the last
 #   platform it was above
 # - When a platform collides the player from the right, there is a water streak effect (resembling a solid plowing
