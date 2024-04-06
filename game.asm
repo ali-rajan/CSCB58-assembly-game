@@ -73,25 +73,25 @@
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
 # Platform spawn position ranges for the top-left unit (TODO: tweak values)
-.eqv PLATFORM_SPAWN_MIN_X 62
-.eqv PLATFORM_SPAWN_MAX_X 120
+.eqv PLATFORM_SPAWN_MIN_X 64
+.eqv PLATFORM_SPAWN_MAX_X 90
 .eqv PLATFORM_SPAWN_MIN_Y 8                 # UI_END_Y + PLAYER_HEIGHT
-.eqv PLATFORM_SPAWN_MAX_Y 63
-.eqv PLATFORM_SPAWN_X_PARTITION_WIDTH 10
-.eqv PLATFORM_SPAWN_X_PARTITION_SPACE 12     # at least PLAYER_WIDTH to prevent simultaneous top and bottom collisions
+.eqv PLATFORM_SPAWN_MAX_Y 59
+.eqv PLATFORM_SPAWN_X_PARTITION_WIDTH 5
+.eqv PLATFORM_SPAWN_X_PARTITION_SPACE 12    # should be enough to prevent simultaneous top and bottom collisions
 # TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
 # .eqv PLATFORM_SPAWN_MIN_Y 28
 # .eqv PLATFORM_SPAWN_MAX_Y 32
-.eqv ENEMY_WIDTH 2
+.eqv ENEMY_WIDTH 4
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
-.eqv ENEMY_SPAWN_MIN_X 40
-.eqv ENEMY_SPAWN_MAX_X 61
+.eqv ENEMY_SPAWN_MIN_X 64
+.eqv ENEMY_SPAWN_MAX_X 100
 .eqv ENEMY_SPAWN_X_PARTITION_WIDTH 18
 .eqv ENEMY_SPAWN_X_PARTITION_SPACE 3
 # TODO: adjust these so enemies aren't redundant because they're out of reach vertically
 .eqv ENEMY_SPAWN_MIN_Y UI_END_Y
-.eqv ENEMY_SPAWN_MAX_Y 61
+.eqv ENEMY_SPAWN_MAX_Y 57
 
 # Colours
 .eqv COLOUR_BACKGROUND 0x000000     # black
@@ -121,6 +121,7 @@
 .eqv PLAYER_MAX_Y 61
 
 .eqv PLATFORM_DELTA_X 1
+.eqv ENEMY_DELTA_X 2
 
 .eqv PLAYER_MAX_HEALTH 3
 
@@ -1028,9 +1029,20 @@ _player_fall:
 _update_player_y_end:
 .end_macro
 
-# Updates the position of each platform, randomly generating a new position once a platform is completely off-screen to
-# the left. The vacated pixels for each platform are filled with the background colour, but the platform is not
-# redrawn.
+# Updates the position of each entity in the given array (moving to the left), randomly generating a new position once
+# a platform is completely off-screen to the left. The vacated pixels for each platform are filled with the background
+# colour, but the platform is not redrawn.
+# Parameters:
+    # %entities_x: x-values of the entities
+    # %entities_y: y-values of the entities
+    # %num_entities: number of entities
+    # %entity_delta_x: distance to move each entity left
+    # %entity_width: width of each entity
+    # %entity_height: height of each entity
+    # %entity_spawn_min_x: minimum x-value to respawn at once off-screen
+    # %entity_spawn_max_x: maximum x-value to respawn at once off-screen
+    # %entity_spawn_min_y: minimum y-value to respawn at once off-screen
+    # %entity_spawn_max_y: maximum y-value to respawn at once off-screen
 # Uses:
     # $t0: draw_entity
     # $t2: draw_entity
@@ -1048,36 +1060,46 @@ _update_player_y_end:
     # $a0: generate_random_position
     # $a1: generate_random_position
     # $v0: generate_random_position and draw_entity
-.macro update_platforms()
-    la $s7, platforms_x
-    la $s6, platforms_y
+.macro update_entities(%entities_x, %entities_y, %num_entities, %entity_delta_x, %entity_width, %entity_height, %entity_spawn_min_x, %entity_spawn_max_x, %entity_spawn_min_y, %entity_spawn_max_y)
+    la $s7, %entities_x
+    la $s6, %entities_y
     add $t8, $zero, $zero   # $t8 = array offset = sizeof(word) * i (for the index i)
-    li $s5, NUM_PLATFORMS
-    sll $s5, $s5, 2         # $s5 = NUM_PLATFORMS * sizeof(word)
+    li $s5, %num_entities
+    sll $s5, $s5, 2         # $s5 = %num_entities * sizeof(word)
 
-_for_each_platform:                         # $t8 = array offset
-    bge $t8, $s5, _update_platforms_end     # while i < NUM_PLATFORMS
+_for_each_entity:                           # $t8 = array offset
+    bge $t8, $s5, _update_entities_end      # while i < %num_entities
     add $t9, $s7, $t8
     add $t6, $s6, $t8
 
-    lw $t7, 0($t9)  # $t7 = platforms_x[i]
-    lw $t5, 0($t6)  # $t5 = platforms_y[i]
-    subi $t7, $t7, PLATFORM_DELTA_X
+    lw $t7, 0($t9)  # $t7 = entities_x[i]
+    lw $t5, 0($t6)  # $t5 = entities_y[i]
+    subi $t7, $t7, %entity_delta_x
     sw $t7, 0($t9)  # %entities_x[i] = new x-value after moving
 
-    bge $t7, -PLATFORM_WIDTH, _platform_off_screen_check_end    # if platform is off-screen, generate new position
-    generate_random_position(PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y, $t7, $t5)
+    addi $t7, $t7, %entity_width    # $t7 = entity's right x-value
+    draw_entity($t7, $t5, %entity_delta_x, %entity_height, COLOUR_BACKGROUND)   # fill vacated pixels
+
+    bge $t7, $zero, _entity_off_screen_check_end  # if entity is off-screen, generate new position
+    generate_random_position(%entity_spawn_min_x, %entity_spawn_max_x, %entity_spawn_min_y, %entity_spawn_max_y, $t7, $t5)
     sw $t7, 0($t9)
     sw $t5, 0($t6)
 
-_platform_off_screen_check_end:
-    addi $t7, $t7, PLATFORM_WIDTH
-    draw_entity($t7, $t5, PLATFORM_DELTA_X, PLATFORM_THICKNESS, COLOUR_BACKGROUND)     # fill vacated pixels
-
+_entity_off_screen_check_end:
     addi $t8, $t8, 4
-    j _for_each_platform
+    j _for_each_entity
 
-_update_platforms_end:
+_update_entities_end:
+.end_macro
+
+# Updates the position of each platform. Wraps update_entities for platforms specifically.
+.macro update_platforms()
+    update_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_DELTA_X, PLATFORM_WIDTH, PLATFORM_THICKNESS, PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y)
+.end_macro
+
+# Updates the position of each enemies. Wraps update_entities for enemies specifically.
+.macro update_enemies()
+    update_entities(enemies_x, enemies_y, NUM_ENEMIES, ENEMY_DELTA_X, ENEMY_WIDTH, ENEMY_HEIGHT, ENEMY_SPAWN_MIN_X, ENEMY_SPAWN_MAX_X, ENEMY_SPAWN_MIN_Y, ENEMY_SPAWN_MAX_Y)
 .end_macro
 
 
@@ -1093,9 +1115,10 @@ _update_platforms_end:
     subi $t1, $t1, 1
     store_word(player_health, $t1)
 
-    print_str(health_lost_debug)
-    print_int($t1)
-    print_str(newline)
+    # TODO: remove once done debugging
+    # print_str(health_lost_debug)
+    # print_int($t1)
+    # print_str(newline)
 
     ble $t1, $zero, game_over
 
@@ -1223,6 +1246,7 @@ game_loop:
     handle_enemy_collisions()
     update_player_y()   # TODO: fix ceiling spiderman bug
     update_platforms()
+    update_enemies()
 
     sleep()
     j game_loop
