@@ -10,7 +10,7 @@
   - Different colours for each type of entity
   - Collision between player and enemy to lose HP
 - Enemies are obstacles moving horizontally towards player
-  - Shooting lasers
+  - ~~Shooting lasers~~
 - Gravity and jumping along with horizontal movement
 - Fail condition: player falls too low or all HP lost to collisions
 - Win condition: all platforms crossed (for a certain platform count)
@@ -52,10 +52,10 @@
 - [x] Fail condition
   - [x] Falling too low
   - [x] All HP lost to collisions
-  - [ ] Draw "game over" screen
+  - [x] Draw "game over" screen
 - [x] Win condition
   - [x] Certain number of platforms crossed
-  - [ ] "You win" screen
+  - [x] "You win" screen
 
 ## Milestone 4
 
@@ -66,7 +66,7 @@
   - [x] Scrolling from left to right
   - [x] Once fully off screen, respawning to the right
 - [ ] ~~Shooting enemies~~
-- [ ] Start menu
+- [x] Start menu
 
 ## Bugs
 
@@ -77,4 +77,6 @@
 - [ ] Platform pushing player
   - When a platform collides the player on the right, vacated player pixels are not filled properly
 - [ ] Air jump
-  - When falling off a platform without jumping, player can jump while in the air 
+  - When falling off a platform without jumping, player can jump while in the air
+- [ ] Health icons when all lives lost
+  - Last health icon should be erased once HP runs out
