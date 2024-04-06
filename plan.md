@@ -76,7 +76,7 @@
   - Player stays attached to the ceiling if reached when jumping
 - [x] Platform pushing player
   - ~~When a platform collides the player on the right, vacated player pixels are not filled properly~~ (this was actually the droplet deforming effect, FPS was too low to see)
-- [ ] Air jump
-  - When falling off a platform without jumping, player can jump while in the air
+- [x] Air jump
+  - ~~When falling off a platform without jumping, player can jump while in the air~~ (this is the delayed jump ability)
 - [x] Health icons when all lives lost
   - Last health icon should be erased once HP runs out
