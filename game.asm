@@ -51,6 +51,9 @@
 .eqv UI_HEALTH_HEIGHT 2
 .eqv UI_SCORE_BAR_UNIT_WIDTH 1          # framebuffer units to draw per score point
 .eqv UI_SCORE_BAR_HEIGHT 2
+.eqv UI_MAIN_MENU_START_BOX_WIDTH 28
+.eqv UI_MAIN_MENU_QUIT_BOX_WIDTH 21
+.eqv UI_MAIN_MENU_BOX_HEIGHT 7
 
 .eqv UI_HEALTH_Y 1
 .eqv UI_SCORE_BAR_START_X 43
@@ -58,6 +61,10 @@
 .eqv UI_DIVIDER_Y 4                     # max(UI_HEALTH_HEIGHT, UI_SCORE_BAR_HEIGHT) + padding
 .eqv UI_DIVIDER_THICKNESS 1
 .eqv UI_END_Y 5                         # UI_DIVIDER_Y + UI_DIVIDER_THICKNESS
+.eqv UI_MAIN_MENU_START_BOX_X 18
+.eqv UI_MAIN_MENU_START_BOX_Y 45
+.eqv UI_MAIN_MENU_QUIT_BOX_X 21
+.eqv UI_MAIN_MENU_QUIT_BOX_Y 54
 
 .eqv UI_HEALTH_1_X 1                    # i-th x-value is (left padding) + (x-spacing + UI_HEALTH_WIDTH) * i
 .eqv UI_HEALTH_2_X 4
@@ -94,25 +101,28 @@
 .eqv ENEMY_SPAWN_MAX_Y 57
 
 # Colours
-.eqv COLOUR_BACKGROUND 0x000000     # black
-.eqv COLOUR_PLATFORM 0x964B00       # brown
-.eqv COLOUR_PLAYER 0x0000FF         # blue
-.eqv COLOUR_ENEMY 0xFFA500          # orange
-.eqv COLOUR_UI_DIVIDER 0xFFFFFF     # white
-.eqv COLOUR_UI_HEALTH 0xFF0000      # red
-.eqv COLOUR_UI_SCORE_BAR 0x6497B1   # blue variant
-.eqv COLOUR_UI_TEXT 0xFFFFFF        # white
+.eqv COLOUR_BACKGROUND 0x000000         # black
+.eqv COLOUR_PLATFORM 0x964B00           # brown
+.eqv COLOUR_PLAYER 0x0000FF             # blue
+.eqv COLOUR_ENEMY 0xFFA500              # orange
+.eqv COLOUR_UI_DIVIDER 0xFFFFFF         # white
+.eqv COLOUR_UI_HEALTH 0xFF0000          # red
+.eqv COLOUR_UI_SCORE_BAR 0x6497B1       # blue variant
+.eqv COLOUR_UI_TEXT 0xFFFFFF            # white
+.eqv COLOUR_UI_MAIN_MENU_BOX 0xFFFFFF   # white
 
 # Keyboard
 .eqv KEYSTROKE_ADDRESS 0xffff0000
 .eqv ASCII_W 0x77
+.eqv ASCII_S 0x73
 .eqv ASCII_A 0x61
 .eqv ASCII_D 0x64
 .eqv ASCII_R 0x72
 .eqv ASCII_Q 0x71
+.eqv ASCII_SPACE 0x20
 
 # Movement (TODO: tweak deltas and FPS)
-.eqv SLEEP_DURATION 100             # sleep duration in milliseconds
+.eqv SLEEP_DURATION 17              # sleep duration in milliseconds
 .eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
 .eqv PLAYER_DELTA_Y 1
 .eqv PLAYER_JUMP_APEX_TIME 15
@@ -127,6 +137,9 @@
 
 .eqv PLAYER_MAX_HEALTH 3
 .eqv WINNING_SCORE 20       # number of platforms to cross
+# Options in the main menu
+.eqv UI_MAIN_MENU_START_OPTION 0
+.eqv UI_MAIN_MENU_QUIT_OPTION 1
 
 .eqv COLLISION_NONE 100000
 .eqv COLLISION_TOP 100001
@@ -781,6 +794,39 @@ _draw_score_bar_end:
 .end_macro
 
 
+# Draws a box highlighting the menu option selected.
+# Parameters:
+    # %option_reg: register storing the menu option selected, one of UI_MAIN_MENU_START_OPTION and
+    # UI_MAIN_MENU_QUIT_OPTION
+    # %highlight_colour: immediate value for the colour
+# Uses:
+    # $a0
+    # $a1
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $v0: draw_entity
+.macro draw_menu_option_selected(%option_reg, %highlight_colour)
+    beq %option_reg, UI_MAIN_MENU_QUIT_OPTION, _highlight_quit
+
+    li $a0, UI_MAIN_MENU_START_BOX_X
+    li $a1, UI_MAIN_MENU_START_BOX_Y
+    draw_entity($a0, $a1, UI_MAIN_MENU_START_BOX_WIDTH, UI_MAIN_MENU_BOX_HEIGHT, %highlight_colour)
+    j _draw_menu_option_selected_end
+
+_highlight_quit:
+    li $a0, UI_MAIN_MENU_QUIT_BOX_X
+    li $a1, UI_MAIN_MENU_QUIT_BOX_Y
+    draw_entity($a0, $a1, UI_MAIN_MENU_QUIT_BOX_WIDTH, UI_MAIN_MENU_BOX_HEIGHT, %highlight_colour)
+
+_draw_menu_option_selected_end:
+.end_macro
+
+
 #################### MOVEMENT ####################
 
 # Adds %delta_x to the player's x-coordinate.
@@ -1216,9 +1262,10 @@ _decrease_player_health_end:
     add $t1, $t1, %increment_reg
     store_word(score, $t1)
 
-    print_str(score_increase_debug)
-    print_int($t1)
-    print_str(newline)
+    # TODO: remove once done debugging
+    # print_str(score_increase_debug)
+    # print_int($t1)
+    # print_str(newline)
 
     bge $t1, WINNING_SCORE, game_won
 .end_macro
@@ -1277,7 +1324,7 @@ _d_pressed:
     j _handle_keypress_end
 
 _r_pressed:
-    j initialize
+    j main
 
 _q_pressed:
     j quit
@@ -1300,7 +1347,7 @@ _handle_keypress_end:
     j _handle_restart_quit_keypress_end
 
 _r_pressed:
-    j initialize
+    j main
 
 _q_pressed:
     j quit
@@ -1308,8 +1355,83 @@ _q_pressed:
 _handle_restart_quit_keypress_end:
 .end_macro
 
+# Parameters:
+    # %option_reg: register storing the menu option selected, one of UI_MAIN_MENU_START_OPTION and
+    # UI_MAIN_MENU_QUIT_OPTION
+# Uses:
+    # $s0
+    # $s1
+    # %option_reg
+
+# Uses: draw_menu_option_selected
+    # $a0
+    # $a1
+    # $s0: draw_entity
+    # $s1: draw_entity
+    # $s2: draw_entity
+    # $s3: draw_entity
+    # $t0: draw_entity
+    # $t2: draw_entity
+    # $t3: draw_entity
+    # $v0: draw_entity
+.macro handle_main_menu_keypress(%option_reg)
+    li $s0, KEYSTROKE_ADDRESS
+    lw $s1, 0($s0)
+    bne $s1, 1, _handle_main_menu_keypress_end
+
+    # TODO: check for restart and quit here
+
+    lw $s1, 4($s0)  # ASCII value of key pressed
+    beq $s1, ASCII_W, _previous_option
+    beq $s1, ASCII_S, _next_option
+    beq $s1, ASCII_SPACE, _select_option
+    beq $s1, ASCII_R, _r_pressed
+    beq $s1, ASCII_Q, _q_pressed
+    j _handle_main_menu_keypress_end
+
+_select_option:
+    beq %option_reg, UI_MAIN_MENU_QUIT_OPTION, quit
+    j initialize
+
+_r_pressed:
+    j main
+
+_q_pressed:
+    j quit
+
+_previous_option:
+    beq %option_reg, UI_MAIN_MENU_START_OPTION, _handle_main_menu_keypress_end  # no action if top option selected
+
+    draw_menu_option_selected(%option_reg, COLOUR_BACKGROUND)   # vacate old box's pixels
+    li %option_reg, UI_MAIN_MENU_START_OPTION
+    j _redraw_highlight_box
+
+_next_option:
+    beq %option_reg, UI_MAIN_MENU_QUIT_OPTION, _handle_main_menu_keypress_end   # no action if bottom option selected
+
+    draw_menu_option_selected(%option_reg, COLOUR_BACKGROUND)   # vacate old box's pixels
+    li %option_reg, UI_MAIN_MENU_QUIT_OPTION
+    j _redraw_highlight_box
+
+_redraw_highlight_box:
+    draw_menu_option_selected(%option_reg, COLOUR_UI_MAIN_MENU_BOX)
+    jal draw_menu_screen
+
+_handle_main_menu_keypress_end:
+.end_macro
+
 
 main:
+
+menu:
+    fill_background(COLOUR_BACKGROUND)
+    li $a3, UI_MAIN_MENU_START_OPTION   # $a3 = menu option selected
+    draw_menu_option_selected($a3, COLOUR_UI_MAIN_MENU_BOX)
+    jal draw_menu_screen
+
+handle_menu_input:
+    handle_main_menu_keypress($a3)      # $a3 is modified directly
+    j handle_menu_input
 
 initialize:     # jump here on restart
     fill_background(COLOUR_BACKGROUND)
@@ -1372,9 +1494,680 @@ quit:
 
 
 #################### MENU SCREENS PIXEL ART ####################
-# Created using online pixel art drawing tool with image to MARS drawing converter
+# Created using online pixel art drawing tool with image to MARS syntax converter
 
-# Draws the game over screen.
+# Uses:
+    # $t0
+    # $t1
+    # $t2
+    # $t3
+    # $t4
+    # $t5
+draw_menu_screen:
+    la $t0, DISPLAY_BASE_ADDRESS
+    li $t1, COLOUR_PLAYER
+    li $t2, COLOUR_ENEMY
+    li $t3, 0x0202b3        # extra blue for shadow effect
+    li $t4, COLOUR_PLATFORM
+    li $t5, COLOUR_UI_HEALTH
+
+    sw $t1, 1300($t0)
+    sw $t1, 1304($t0)
+    sw $t1, 1308($t0)
+    sw $t1, 1312($t0)
+    sw $t1, 1316($t0)
+    sw $t1, 1336($t0)
+    sw $t1, 1340($t0)
+    sw $t1, 1344($t0)
+    sw $t1, 1348($t0)
+    sw $t1, 1364($t0)
+    sw $t1, 1368($t0)
+    sw $t1, 1372($t0)
+    sw $t1, 1376($t0)
+    sw $t1, 1380($t0)
+    sw $t1, 1384($t0)
+    sw $t1, 1400($t0)
+    sw $t1, 1404($t0)
+    sw $t1, 1408($t0)
+    sw $t1, 1412($t0)
+    sw $t1, 1428($t0)
+    sw $t1, 1456($t0)
+    sw $t1, 1460($t0)
+    sw $t1, 1464($t0)
+    sw $t1, 1468($t0)
+    sw $t1, 1484($t0)
+    sw $t1, 1488($t0)
+    sw $t1, 1492($t0)
+    sw $t1, 1496($t0)
+    sw $t1, 1500($t0)
+    sw $t1, 1504($t0)
+    sw $t1, 1508($t0)
+    sw $t1, 1512($t0)
+    sw $t1, 1552($t0)
+    sw $t1, 1556($t0)
+    sw $t1, 1560($t0)
+    sw $t1, 1564($t0)
+    sw $t1, 1568($t0)
+    sw $t1, 1572($t0)
+    sw $t1, 1576($t0)
+    sw $t1, 1588($t0)
+    sw $t1, 1592($t0)
+    sw $t1, 1596($t0)
+    sw $t1, 1600($t0)
+    sw $t1, 1604($t0)
+    sw $t1, 1608($t0)
+    sw $t1, 1616($t0)
+    sw $t1, 1620($t0)
+    sw $t1, 1624($t0)
+    sw $t1, 1628($t0)
+    sw $t1, 1632($t0)
+    sw $t1, 1636($t0)
+    sw $t1, 1640($t0)
+    sw $t1, 1644($t0)
+    sw $t1, 1652($t0)
+    sw $t1, 1656($t0)
+    sw $t1, 1660($t0)
+    sw $t1, 1664($t0)
+    sw $t1, 1668($t0)
+    sw $t1, 1672($t0)
+    sw $t1, 1680($t0)
+    sw $t1, 1684($t0)
+    sw $t1, 1708($t0)
+    sw $t1, 1712($t0)
+    sw $t1, 1716($t0)
+    sw $t1, 1720($t0)
+    sw $t1, 1724($t0)
+    sw $t1, 1728($t0)
+    sw $t1, 1736($t0)
+    sw $t1, 1740($t0)
+    sw $t1, 1744($t0)
+    sw $t1, 1748($t0)
+    sw $t1, 1752($t0)
+    sw $t1, 1756($t0)
+    sw $t1, 1760($t0)
+    sw $t1, 1764($t0)
+    sw $t1, 1768($t0)
+    sw $t1, 1772($t0)
+    sw $t1, 1808($t0)
+    sw $t1, 1812($t0)
+    sw $t1, 1828($t0)
+    sw $t1, 1832($t0)
+    sw $t1, 1836($t0)
+    sw $t1, 1844($t0)
+    sw $t1, 1848($t0)
+    sw $t1, 1860($t0)
+    sw $t1, 1864($t0)
+    sw $t1, 1872($t0)
+    sw $t1, 1876($t0)
+    sw $t1, 1880($t0)
+    sw $t1, 1892($t0)
+    sw $t1, 1896($t0)
+    sw $t1, 1900($t0)
+    sw $t1, 1908($t0)
+    sw $t1, 1912($t0)
+    sw $t1, 1924($t0)
+    sw $t1, 1928($t0)
+    sw $t1, 1936($t0)
+    sw $t1, 1940($t0)
+    sw $t1, 1964($t0)
+    sw $t1, 1968($t0)
+    sw $t1, 1972($t0)
+    sw $t1, 2008($t0)
+    sw $t1, 2012($t0)
+    sw $t1, 2064($t0)
+    sw $t1, 2068($t0)
+    sw $t1, 2088($t0)
+    sw $t1, 2092($t0)
+    sw $t1, 2100($t0)
+    sw $t1, 2104($t0)
+    sw $t1, 2116($t0)
+    sw $t1, 2120($t0)
+    sw $t1, 2128($t0)
+    sw $t1, 2132($t0)
+    sw $t1, 2152($t0)
+    sw $t1, 2156($t0)
+    sw $t1, 2164($t0)
+    sw $t1, 2168($t0)
+    sw $t1, 2180($t0)
+    sw $t1, 2184($t0)
+    sw $t1, 2192($t0)
+    sw $t1, 2196($t0)
+    sw $t1, 2220($t0)
+    sw $t1, 2224($t0)
+    sw $t1, 2264($t0)
+    sw $t1, 2268($t0)
+    sw $t1, 2320($t0)
+    sw $t1, 2324($t0)
+    sw $t1, 2344($t0)
+    sw $t1, 2348($t0)
+    sw $t1, 2356($t0)
+    sw $t1, 2360($t0)
+    sw $t1, 2368($t0)
+    sw $t1, 2372($t0)
+    sw $t1, 2376($t0)
+    sw $t1, 2384($t0)
+    sw $t1, 2388($t0)
+    sw $t1, 2408($t0)
+    sw $t1, 2412($t0)
+    sw $t1, 2420($t0)
+    sw $t1, 2424($t0)
+    sw $t1, 2428($t0)
+    sw $t1, 2432($t0)
+    sw $t1, 2436($t0)
+    sw $t1, 2440($t0)
+    sw $t1, 2448($t0)
+    sw $t1, 2452($t0)
+    sw $t1, 2476($t0)
+    sw $t1, 2480($t0)
+    sw $t1, 2484($t0)
+    sw $t1, 2488($t0)
+    sw $t1, 2520($t0)
+    sw $t1, 2524($t0)
+    sw $t1, 2576($t0)
+    sw $t1, 2580($t0)
+    sw $t1, 2600($t0)
+    sw $t1, 2604($t0)
+    sw $t1, 2612($t0)
+    sw $t1, 2616($t0)
+    sw $t1, 2620($t0)
+    sw $t1, 2624($t0)
+    sw $t1, 2628($t0)
+    sw $t1, 2640($t0)
+    sw $t1, 2644($t0)
+    sw $t1, 2664($t0)
+    sw $t1, 2668($t0)
+    sw $t1, 2676($t0)
+    sw $t1, 2680($t0)
+    sw $t1, 2684($t0)
+    sw $t1, 2688($t0)
+    sw $t1, 2692($t0)
+    sw $t1, 2704($t0)
+    sw $t1, 2708($t0)
+    sw $t1, 2732($t0)
+    sw $t1, 2736($t0)
+    sw $t1, 2740($t0)
+    sw $t1, 2744($t0)
+    sw $t1, 2776($t0)
+    sw $t1, 2780($t0)
+    sw $t1, 2832($t0)
+    sw $t1, 2836($t0)
+    sw $t1, 2856($t0)
+    sw $t1, 2860($t0)
+    sw $t1, 2868($t0)
+    sw $t1, 2872($t0)
+    sw $t1, 2876($t0)
+    sw $t1, 2880($t0)
+    sw $t1, 2896($t0)
+    sw $t1, 2900($t0)
+    sw $t1, 2920($t0)
+    sw $t1, 2924($t0)
+    sw $t1, 2932($t0)
+    sw $t1, 2936($t0)
+    sw $t1, 2960($t0)
+    sw $t1, 2964($t0)
+    sw $t1, 2988($t0)
+    sw $t1, 2992($t0)
+    sw $t1, 3032($t0)
+    sw $t1, 3036($t0)
+    sw $t1, 3088($t0)
+    sw $t1, 3092($t0)
+    sw $t1, 3108($t0)
+    sw $t1, 3112($t0)
+    sw $t1, 3116($t0)
+    sw $t1, 3124($t0)
+    sw $t1, 3128($t0)
+    sw $t1, 3132($t0)
+    sw $t1, 3136($t0)
+    sw $t1, 3140($t0)
+    sw $t1, 3152($t0)
+    sw $t1, 3156($t0)
+    sw $t1, 3160($t0)
+    sw $t1, 3172($t0)
+    sw $t1, 3176($t0)
+    sw $t1, 3180($t0)
+    sw $t1, 3188($t0)
+    sw $t1, 3192($t0)
+    sw $t1, 3216($t0)
+    sw $t1, 3220($t0)
+    sw $t1, 3224($t0)
+    sw $t1, 3244($t0)
+    sw $t1, 3248($t0)
+    sw $t1, 3252($t0)
+    sw $t1, 3288($t0)
+    sw $t1, 3292($t0)
+    sw $t1, 3344($t0)
+    sw $t1, 3348($t0)
+    sw $t1, 3352($t0)
+    sw $t1, 3356($t0)
+    sw $t1, 3360($t0)
+    sw $t1, 3364($t0)
+    sw $t1, 3368($t0)
+    sw $t1, 3380($t0)
+    sw $t1, 3384($t0)
+    sw $t1, 3392($t0)
+    sw $t1, 3396($t0)
+    sw $t1, 3400($t0)
+    sw $t1, 3408($t0)
+    sw $t1, 3412($t0)
+    sw $t1, 3416($t0)
+    sw $t1, 3420($t0)
+    sw $t1, 3424($t0)
+    sw $t1, 3428($t0)
+    sw $t1, 3432($t0)
+    sw $t1, 3436($t0)
+    sw $t1, 3444($t0)
+    sw $t1, 3448($t0)
+    sw $t1, 3472($t0)
+    sw $t1, 3476($t0)
+    sw $t1, 3480($t0)
+    sw $t1, 3484($t0)
+    sw $t1, 3488($t0)
+    sw $t1, 3492($t0)
+    sw $t1, 3500($t0)
+    sw $t1, 3504($t0)
+    sw $t1, 3508($t0)
+    sw $t1, 3512($t0)
+    sw $t1, 3516($t0)
+    sw $t1, 3520($t0)
+    sw $t1, 3544($t0)
+    sw $t1, 3548($t0)
+    sw $t1, 3604($t0)
+    sw $t1, 3608($t0)
+    sw $t1, 3612($t0)
+    sw $t1, 3616($t0)
+    sw $t1, 3620($t0)
+    sw $t1, 3640($t0)
+    sw $t1, 3652($t0)
+    sw $t1, 3656($t0)
+    sw $t1, 3668($t0)
+    sw $t1, 3672($t0)
+    sw $t1, 3676($t0)
+    sw $t1, 3680($t0)
+    sw $t1, 3684($t0)
+    sw $t1, 3688($t0)
+    sw $t1, 3704($t0)
+    sw $t1, 3732($t0)
+    sw $t1, 3736($t0)
+    sw $t1, 3740($t0)
+    sw $t1, 3744($t0)
+    sw $t1, 3760($t0)
+    sw $t1, 3764($t0)
+    sw $t1, 3768($t0)
+    sw $t1, 3772($t0)
+    sw $t1, 3800($t0)
+    sw $t1, 4672($t0)
+    sw $t1, 4676($t0)
+    sw $t1, 4680($t0)
+    sw $t1, 4684($t0)
+    sw $t1, 4688($t0)
+    sw $t1, 4712($t0)
+    sw $t1, 4716($t0)
+    sw $t1, 4720($t0)
+    sw $t1, 4724($t0)
+    sw $t1, 4744($t0)
+    sw $t1, 4748($t0)
+    sw $t1, 4752($t0)
+    sw $t1, 4756($t0)
+    sw $t1, 4772($t0)
+    sw $t1, 4792($t0)
+    sw $t1, 4924($t0)
+    sw $t1, 4928($t0)
+    sw $t1, 4932($t0)
+    sw $t1, 4936($t0)
+    sw $t1, 4940($t0)
+    sw $t1, 4944($t0)
+    sw $t1, 4948($t0)
+    sw $t1, 4964($t0)
+    sw $t1, 4968($t0)
+    sw $t1, 4972($t0)
+    sw $t1, 4976($t0)
+    sw $t1, 4980($t0)
+    sw $t1, 4984($t0)
+    sw $t1, 4996($t0)
+    sw $t1, 5000($t0)
+    sw $t1, 5004($t0)
+    sw $t1, 5008($t0)
+    sw $t1, 5012($t0)
+    sw $t1, 5016($t0)
+    sw $t1, 5024($t0)
+    sw $t1, 5028($t0)
+    sw $t1, 5048($t0)
+    sw $t1, 5052($t0)
+    sw $t1, 5180($t0)
+    sw $t1, 5184($t0)
+    sw $t1, 5200($t0)
+    sw $t1, 5204($t0)
+    sw $t1, 5208($t0)
+    sw $t1, 5216($t0)
+    sw $t1, 5220($t0)
+    sw $t1, 5224($t0)
+    sw $t1, 5236($t0)
+    sw $t1, 5240($t0)
+    sw $t1, 5244($t0)
+    sw $t1, 5252($t0)
+    sw $t1, 5256($t0)
+    sw $t1, 5260($t0)
+    sw $t1, 5280($t0)
+    sw $t1, 5284($t0)
+    sw $t1, 5304($t0)
+    sw $t1, 5308($t0)
+    sw $t1, 5436($t0)
+    sw $t1, 5440($t0)
+    sw $t1, 5460($t0)
+    sw $t1, 5464($t0)
+    sw $t1, 5472($t0)
+    sw $t1, 5476($t0)
+    sw $t1, 5496($t0)
+    sw $t1, 5500($t0)
+    sw $t1, 5508($t0)
+    sw $t1, 5512($t0)
+    sw $t1, 5536($t0)
+    sw $t1, 5540($t0)
+    sw $t1, 5560($t0)
+    sw $t1, 5564($t0)
+    sw $t1, 5692($t0)
+    sw $t1, 5696($t0)
+    sw $t1, 5716($t0)
+    sw $t1, 5720($t0)
+    sw $t1, 5728($t0)
+    sw $t1, 5732($t0)
+    sw $t1, 5736($t0)
+    sw $t1, 5740($t0)
+    sw $t1, 5744($t0)
+    sw $t1, 5748($t0)
+    sw $t1, 5752($t0)
+    sw $t1, 5756($t0)
+    sw $t1, 5764($t0)
+    sw $t1, 5768($t0)
+    sw $t1, 5772($t0)
+    sw $t1, 5776($t0)
+    sw $t1, 5780($t0)
+    sw $t1, 5792($t0)
+    sw $t1, 5796($t0)
+    sw $t1, 5800($t0)
+    sw $t1, 5804($t0)
+    sw $t1, 5808($t0)
+    sw $t1, 5812($t0)
+    sw $t1, 5816($t0)
+    sw $t1, 5820($t0)
+    sw $t1, 5948($t0)
+    sw $t1, 5952($t0)
+    sw $t1, 5972($t0)
+    sw $t1, 5976($t0)
+    sw $t1, 5984($t0)
+    sw $t1, 5988($t0)
+    sw $t1, 5992($t0)
+    sw $t1, 5996($t0)
+    sw $t1, 6000($t0)
+    sw $t1, 6004($t0)
+    sw $t1, 6008($t0)
+    sw $t1, 6012($t0)
+    sw $t1, 6024($t0)
+    sw $t1, 6028($t0)
+    sw $t1, 6032($t0)
+    sw $t1, 6036($t0)
+    sw $t1, 6040($t0)
+    sw $t1, 6048($t0)
+    sw $t1, 6052($t0)
+    sw $t1, 6056($t0)
+    sw $t1, 6060($t0)
+    sw $t1, 6064($t0)
+    sw $t1, 6068($t0)
+    sw $t1, 6072($t0)
+    sw $t1, 6076($t0)
+    sw $t1, 6204($t0)
+    sw $t1, 6208($t0)
+    sw $t1, 6228($t0)
+    sw $t1, 6232($t0)
+    sw $t1, 6240($t0)
+    sw $t1, 6244($t0)
+    sw $t1, 6264($t0)
+    sw $t1, 6268($t0)
+    sw $t1, 6292($t0)
+    sw $t1, 6296($t0)
+    sw $t1, 6304($t0)
+    sw $t1, 6308($t0)
+    sw $t1, 6328($t0)
+    sw $t1, 6332($t0)
+    sw $t1, 6460($t0)
+    sw $t1, 6464($t0)
+    sw $t1, 6480($t0)
+    sw $t1, 6484($t0)
+    sw $t1, 6488($t0)
+    sw $t1, 6496($t0)
+    sw $t1, 6500($t0)
+    sw $t1, 6520($t0)
+    sw $t1, 6524($t0)
+    sw $t1, 6544($t0)
+    sw $t1, 6548($t0)
+    sw $t1, 6552($t0)
+    sw $t1, 6560($t0)
+    sw $t1, 6564($t0)
+    sw $t1, 6584($t0)
+    sw $t1, 6588($t0)
+    sw $t1, 6716($t0)
+    sw $t1, 6720($t0)
+    sw $t1, 6724($t0)
+    sw $t1, 6728($t0)
+    sw $t1, 6732($t0)
+    sw $t1, 6736($t0)
+    sw $t1, 6740($t0)
+    sw $t1, 6752($t0)
+    sw $t1, 6756($t0)
+    sw $t1, 6776($t0)
+    sw $t1, 6780($t0)
+    sw $t1, 6788($t0)
+    sw $t1, 6792($t0)
+    sw $t1, 6796($t0)
+    sw $t1, 6800($t0)
+    sw $t1, 6804($t0)
+    sw $t1, 6808($t0)
+    sw $t1, 6816($t0)
+    sw $t1, 6820($t0)
+    sw $t1, 6840($t0)
+    sw $t1, 6844($t0)
+    sw $t1, 6976($t0)
+    sw $t1, 6980($t0)
+    sw $t1, 6984($t0)
+    sw $t1, 6988($t0)
+    sw $t1, 6992($t0)
+    sw $t1, 7012($t0)
+    sw $t1, 7032($t0)
+    sw $t1, 7048($t0)
+    sw $t1, 7052($t0)
+    sw $t1, 7056($t0)
+    sw $t1, 7060($t0)
+    sw $t1, 7076($t0)
+    sw $t1, 7096($t0)
+    sw $t2, 7904($t0)
+    sw $t2, 7908($t0)
+    sw $t2, 7912($t0)
+    sw $t2, 8160($t0)
+    sw $t2, 8164($t0)
+    sw $t2, 8168($t0)
+    sw $t2, 8176($t0)
+    sw $t2, 8184($t0)
+    sw $t2, 8416($t0)
+    sw $t2, 8420($t0)
+    sw $t2, 8424($t0)
+    sw $t1, 8488($t0)
+    sw $t1, 8492($t0)
+    sw $t1, 8496($t0)
+    sw $t1, 8500($t0)
+    sw $t1, 8504($t0)
+    sw $t1, 8508($t0)
+    sw $t3, 8744($t0)
+    sw $t1, 8748($t0)
+    sw $t1, 8752($t0)
+    sw $t1, 8756($t0)
+    sw $t1, 8760($t0)
+    sw $t1, 8764($t0)
+    sw $t3, 9000($t0)
+    sw $t1, 9004($t0)
+    sw $t1, 9008($t0)
+    sw $t1, 9012($t0)
+    sw $t1, 9016($t0)
+    sw $t1, 9020($t0)
+    sw $t4, 9152($t0)
+    sw $t4, 9156($t0)
+    sw $t4, 9160($t0)
+    sw $t4, 9164($t0)
+    sw $t4, 9168($t0)
+    sw $t4, 9172($t0)
+    sw $t4, 9176($t0)
+    sw $t4, 9180($t0)
+    sw $t4, 9184($t0)
+    sw $t4, 9188($t0)
+    sw $t4, 9192($t0)
+    sw $t4, 9196($t0)
+    sw $t4, 9200($t0)
+    sw $t4, 9204($t0)
+    sw $t4, 9208($t0)
+    sw $t4, 9212($t0)
+    sw $t3, 9256($t0)
+    sw $t1, 9260($t0)
+    sw $t1, 9264($t0)
+    sw $t1, 9268($t0)
+    sw $t1, 9272($t0)
+    sw $t1, 9276($t0)
+    sw $t4, 9408($t0)
+    sw $t4, 9412($t0)
+    sw $t4, 9416($t0)
+    sw $t4, 9420($t0)
+    sw $t4, 9424($t0)
+    sw $t4, 9428($t0)
+    sw $t4, 9432($t0)
+    sw $t4, 9436($t0)
+    sw $t4, 9440($t0)
+    sw $t4, 9444($t0)
+    sw $t4, 9448($t0)
+    sw $t4, 9452($t0)
+    sw $t4, 9456($t0)
+    sw $t4, 9460($t0)
+    sw $t4, 9464($t0)
+    sw $t4, 9468($t0)
+    sw $t3, 9512($t0)
+    sw $t1, 9516($t0)
+    sw $t1, 9520($t0)
+    sw $t1, 9524($t0)
+    sw $t1, 9528($t0)
+    sw $t1, 9532($t0)
+    sw $t3, 9768($t0)
+    sw $t3, 9772($t0)
+    sw $t3, 9776($t0)
+    sw $t3, 9780($t0)
+    sw $t1, 9784($t0)
+    sw $t1, 9788($t0)
+    sw $t1, 10272($t0)
+    sw $t1, 10776($t0)
+    sw $t4, 11264($t0)
+    sw $t4, 11268($t0)
+    sw $t4, 11272($t0)
+    sw $t4, 11276($t0)
+    sw $t4, 11280($t0)
+    sw $t4, 11284($t0)
+    sw $t4, 11288($t0)
+    sw $t4, 11520($t0)
+    sw $t4, 11524($t0)
+    sw $t4, 11528($t0)
+    sw $t4, 11532($t0)
+    sw $t4, 11536($t0)
+    sw $t4, 11540($t0)
+    sw $t4, 11544($t0)
+    sw $t5, 11856($t0)
+    sw $t5, 11860($t0)
+    sw $t5, 11864($t0)
+    sw $t5, 11872($t0)
+    sw $t5, 11876($t0)
+    sw $t5, 11880($t0)
+    sw $t5, 11884($t0)
+    sw $t5, 11888($t0)
+    sw $t5, 11900($t0)
+    sw $t5, 11904($t0)
+    sw $t5, 11916($t0)
+    sw $t5, 11920($t0)
+    sw $t5, 11924($t0)
+    sw $t5, 11936($t0)
+    sw $t5, 11940($t0)
+    sw $t5, 11944($t0)
+    sw $t5, 11948($t0)
+    sw $t5, 11952($t0)
+    sw $t5, 12108($t0)
+    sw $t5, 12136($t0)
+    sw $t5, 12152($t0)
+    sw $t5, 12164($t0)
+    sw $t5, 12172($t0)
+    sw $t5, 12184($t0)
+    sw $t5, 12200($t0)
+    sw $t5, 12368($t0)
+    sw $t5, 12372($t0)
+    sw $t5, 12392($t0)
+    sw $t5, 12408($t0)
+    sw $t5, 12412($t0)
+    sw $t5, 12416($t0)
+    sw $t5, 12420($t0)
+    sw $t5, 12428($t0)
+    sw $t5, 12432($t0)
+    sw $t5, 12436($t0)
+    sw $t5, 12456($t0)
+    sw $t5, 12632($t0)
+    sw $t5, 12648($t0)
+    sw $t5, 12664($t0)
+    sw $t5, 12676($t0)
+    sw $t5, 12684($t0)
+    sw $t5, 12692($t0)
+    sw $t5, 12712($t0)
+    sw $t5, 12876($t0)
+    sw $t5, 12880($t0)
+    sw $t5, 12884($t0)
+    sw $t5, 12904($t0)
+    sw $t5, 12920($t0)
+    sw $t5, 12932($t0)
+    sw $t5, 12940($t0)
+    sw $t5, 12952($t0)
+    sw $t5, 12968($t0)
+    sw $t2, 14172($t0)
+    sw $t2, 14176($t0)
+    sw $t2, 14188($t0)
+    sw $t2, 14200($t0)
+    sw $t2, 14208($t0)
+    sw $t2, 14212($t0)
+    sw $t2, 14216($t0)
+    sw $t2, 14224($t0)
+    sw $t2, 14228($t0)
+    sw $t2, 14232($t0)
+    sw $t2, 14236($t0)
+    sw $t2, 14240($t0)
+    sw $t2, 14424($t0)
+    sw $t2, 14436($t0)
+    sw $t2, 14444($t0)
+    sw $t2, 14456($t0)
+    sw $t2, 14468($t0)
+    sw $t2, 14488($t0)
+    sw $t2, 14680($t0)
+    sw $t2, 14692($t0)
+    sw $t2, 14700($t0)
+    sw $t2, 14712($t0)
+    sw $t2, 14724($t0)
+    sw $t2, 14744($t0)
+    sw $t2, 14936($t0)
+    sw $t2, 14944($t0)
+    sw $t2, 14956($t0)
+    sw $t2, 14968($t0)
+    sw $t2, 14980($t0)
+    sw $t2, 15000($t0)
+    sw $t2, 15196($t0)
+    sw $t2, 15204($t0)
+    sw $t2, 15216($t0)
+    sw $t2, 15220($t0)
+    sw $t2, 15232($t0)
+    sw $t2, 15236($t0)
+    sw $t2, 15240($t0)
+    sw $t2, 15256($t0)
+
+    jr $ra
+
+
 # Uses:
     # $t0
     # $t1
@@ -2762,7 +3555,6 @@ draw_game_over_screen:
 
     jr $ra
 
-# Draws the winning screen.
 # Uses:
     # $t0
     # $t1
