@@ -72,14 +72,14 @@
 .eqv PLAYER_INITIAL_Y 29
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
-# Platform spawn position ranges for the top-left unit
-.eqv PLATFORM_MIN_X 12
-.eqv PLATFORM_MAX_X 52
-.eqv PLATFORM_MIN_Y 8                   # UI_END_Y + PLAYER_HEIGHT
-.eqv PLATFORM_MAX_Y 63
+# Platform spawn position ranges for the top-left unit (TODO: tweak values)
+.eqv PLATFORM_SPAWN_MIN_X 62
+.eqv PLATFORM_SPAWN_MAX_X 120
+.eqv PLATFORM_SPAWN_MIN_Y 8                   # UI_END_Y + PLAYER_HEIGHT
+.eqv PLATFORM_SPAWN_MAX_Y 63
 # TODO: if there is a platform both above and below the player, collision detection can break (e.g. the values below)
-# .eqv PLATFORM_MIN_Y 28
-# .eqv PLATFORM_MAX_Y 32
+# .eqv PLATFORM_SPAWN_MIN_Y 28
+# .eqv PLATFORM_SPAWN_MAX_Y 32
 .eqv ENEMY_WIDTH 2
 .eqv ENEMY_HEIGHT 2
 # Enemy spawn position ranges for the top-left unit
@@ -106,7 +106,7 @@
 .eqv ASCII_Q 0x71
 
 # Movement (TODO: tweak deltas and FPS)
-.eqv SLEEP_DURATION 100              # sleep duration in milliseconds
+.eqv SLEEP_DURATION 100             # sleep duration in milliseconds
 .eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
 .eqv PLAYER_DELTA_Y 1
 .eqv PLAYER_JUMP_APEX_TIME 15
@@ -555,7 +555,7 @@ _draw_entities_end:
     # $a1: initialize_entities
     # $v0: initialize_entities
 .macro initialize_platforms()   # TODO: it should be impossible to collide with both platforms on the left and right
-    initialize_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_MIN_X, PLATFORM_MAX_X, PLATFORM_MIN_Y, PLATFORM_MAX_Y)
+    initialize_entities(platforms_x, platforms_y, NUM_PLATFORMS, PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y)
 
     # Overwrite first platform so it's placed below the player
     la $t0, platforms_x
@@ -995,6 +995,11 @@ _update_player_y_end:
     # $t2: colour_unit
     # $t3: colour_unit
     # $v0: colour_unit
+
+# Uses: generate_random_position
+    # $a0: random_integer
+    # $a1: random_integer
+    # $v0: random_integer
 .macro update_platforms()
     la $s7, platforms_x
     la $s6, platforms_y
@@ -1012,6 +1017,12 @@ _for_each_platform:                         # $t8 = array offset
     subi $t7, $t7, PLATFORM_DELTA_X
     sw $t7, 0($t9)  # %entities_x[i] = new x-value after moving
 
+    bge $t7, -PLATFORM_WIDTH, _platform_off_screen_check_end
+    generate_random_position(PLATFORM_SPAWN_MIN_X, PLATFORM_SPAWN_MAX_X, PLATFORM_SPAWN_MIN_Y, PLATFORM_SPAWN_MAX_Y, $t7, $t5)
+    sw $t7, 0($t9)
+    sw $t5, 0($t6)
+
+_platform_off_screen_check_end:
     addi $t7, $t7, PLATFORM_WIDTH
     draw_entity($t7, $t5, PLATFORM_DELTA_X, PLATFORM_THICKNESS, COLOUR_BACKGROUND)     # fill vacated pixels
 
