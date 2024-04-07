@@ -140,7 +140,7 @@
 .eqv ENEMY_DELTA_X 2
 
 .eqv PLAYER_MAX_HEALTH 3
-.eqv WINNING_SCORE 20       # number of platforms to cross
+.eqv WINNING_SCORE 15       # number of platforms to cross
 # Options in the main menu
 .eqv UI_MAIN_MENU_START_OPTION 0
 .eqv UI_MAIN_MENU_QUIT_OPTION 1
