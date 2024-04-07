@@ -69,7 +69,7 @@
 
 ## Bugs
 
-- [ ] Platform both below and above the player
+- [x] Platform both below and above the player
     - Player is moved below the lower platform
 - [x] Ceiling spiderman
   - Player stays attached to the ceiling if reached when jumping
