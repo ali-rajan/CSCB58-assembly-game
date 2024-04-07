@@ -14,7 +14,7 @@
 #
 # Which milestones have been reached in this submission?
 # (See the assignment handout for descriptions of the milestones)
-# - Milestone 4
+# - Milestones 1-4 all done
 #
 # Which approved features have been implemented for milestone 4?
 # (See the assignment handout for the list of additional features)
