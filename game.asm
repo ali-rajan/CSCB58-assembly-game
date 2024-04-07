@@ -6,10 +6,10 @@
 # Student: Ali Rajan, 1009034386, rajanal1, ali.rajan@mail.utoronto.ca
 #
 # Bitmap Display Configuration:
-# - Unit width in pixels: 8 (update this as needed)
-# - Unit height in pixels: 8 (update this as needed)
-# - Display width in pixels: 512 (update this as needed)
-# - Display height in pixels: 512 (update this as needed)
+# - Unit width in pixels: 8
+# - Unit height in pixels: 8
+# - Display width in pixels: 512
+# - Display height in pixels: 512
 # - Base Address for Display: 0x10008000 ($gp)
 #
 # Which milestones have been reached in this submission?
