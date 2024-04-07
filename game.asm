@@ -27,12 +27,13 @@
 # - (insert YouTube / MyMedia / other URL here). Make sure we can view it!
 #
 # Are you OK with us sharing the video with people outside course staff?
-# - yes, and please share this project github link as well!
+# - yes
+# - https://github.com/ali-rajan/CSCB58-assembly-game
 #
 # Any additional information that the TA needs to know:
-# - An extra screen is show when the player quits (by pressing "q")
+# - An extra screen is shown when the player quits (by pressing "q")
 # - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped when on the last
-#   platform it was above
+#   platform
 # - When a platform collides the player from the right, there is a water streak effect (resembling a solid plowing
 #   through a water droplet); the smeared water particles can be recollected (it was intended that the collision would
 #   reduce HP and recollecting particles would restore HP, though this was not completed due to time constraints)
@@ -60,7 +61,7 @@
 .eqv UI_MAIN_MENU_BOX_HEIGHT 7
 
 .eqv UI_HEALTH_Y 1
-.eqv UI_SCORE_BAR_START_X 43
+.eqv UI_SCORE_BAR_START_X 49            # SCREEN_WIDTH - WINNING_SCORE - (padding - 1)
 .eqv UI_SCORE_BAR_Y 1
 .eqv UI_DIVIDER_Y 4                     # max(UI_HEALTH_HEIGHT, UI_SCORE_BAR_HEIGHT) + padding
 .eqv UI_DIVIDER_THICKNESS 1
@@ -84,14 +85,10 @@
 .eqv PLATFORM_WIDTH 12
 .eqv PLATFORM_THICKNESS 1
 # Platform spawn position ranges for the top-left unit
-# TODO: tweak values so this doesn't happen: if there is a platform both above and below the player, collision
-# detection can break (e.g. the values below)
-# .eqv PLATFORM_SPAWN_MIN_Y 28
-# .eqv PLATFORM_SPAWN_MAX_Y 32
 .eqv PLATFORM_SPAWN_MIN_X 64
 .eqv PLATFORM_SPAWN_MAX_X 90
-.eqv PLATFORM_SPAWN_MIN_Y 8                 # UI_END_Y + PLAYER_HEIGHT
-.eqv PLATFORM_SPAWN_MAX_Y 59                # slightly above the flame pit
+.eqv PLATFORM_SPAWN_MIN_Y 18                # should be at least UI_END_Y + PLAYER_HEIGHT
+.eqv PLATFORM_SPAWN_MAX_Y 50                # player may not be able to jump to other platforms if this is too high
 .eqv PLATFORM_SPAWN_X_PARTITION_WIDTH 5     # partitioning DISPLAY_WIDTH into initial platform spawn ranges
 .eqv PLATFORM_SPAWN_X_PARTITION_SPACE 12    # should be enough to prevent simultaneous top and bottom collisions
 .eqv ENEMY_WIDTH 4
@@ -125,7 +122,7 @@
 .eqv ASCII_Q 0x71
 .eqv ASCII_SPACE 0x20
 
-# Movement (TODO: tweak deltas and FPS)
+# Movement
 .eqv SLEEP_DURATION 40              # sleep duration in milliseconds
 .eqv PLAYER_DELTA_X 1               # x-value increment for each keypress
 .eqv PLAYER_DELTA_Y 1
@@ -174,16 +171,6 @@ enemies_y: .word 0:NUM_ENEMIES
 # Coordinates of each health icon's top-left unit (y-value is same for all)
 health_icons_x: .word UI_HEALTH_1_X, UI_HEALTH_2_X, UI_HEALTH_3_X
 
-# Debug text (TODO: remove once done debugging, or decide to keep printing debug messages throughout)
-keypress_text_debug: .asciiz "key pressed: "
-collision_top_debug: .asciiz "top collision\n"
-collision_bottom_debug: .asciiz "bottom collision\n"
-collision_left_debug: .asciiz "left collision\n"
-collision_right_debug: .asciiz "right collision\n"
-health_lost_debug: .asciiz "lives remaining: "
-score_increase_debug: .asciiz "score: "
-newline: .asciiz "\n"
-
 .text
 
 .globl main
@@ -192,44 +179,6 @@ j main
 
 
 ######################################## UTILITIES ########################################
-
-# TODO: remove print macros once done debugging (or decide to print debug messages throughout)
-
-# Prints the given string.
-# Parameters:
-    # %str: .asciiz string to print
-# Uses:
-    # $v0
-    # $a0
-.macro print_str(%str)
-    li $v0, 4
-    la $a0, %str
-    syscall
-.end_macro
-
-# Prints the given register's character value.
-# Parameters:
-    # %reg: register storing the ASCII value
-# Uses:
-    # $v0
-    # $a0
-.macro print_char(%reg)
-    li $v0, 11
-    move $a0, %reg
-    syscall
-.end_macro
-
-# Prints the given register's integer value.
-# Parameters:
-    # %reg: register storing the integer
-# Uses:
-    # $v0
-    # $a0
-.macro print_int(%reg)
-    li $v0, 1
-    move $a0, %reg
-    syscall
-.end_macro
 
 # Sleeps for SLEEP_DURATION milliseconds.
 # Uses:
@@ -1267,11 +1216,6 @@ _update_entities_end:
     subi $t1, $t1, 1
     store_word(player_health, $t1)
 
-    # TODO: remove once done debugging
-    # print_str(health_lost_debug)
-    # print_int($t1)
-    # print_str(newline)
-
     ble $t1, $zero, game_over
 
 _decrease_player_health_end:
@@ -1287,11 +1231,6 @@ _decrease_player_health_end:
     load_word(score, $t1)
     add $t1, $t1, %increment_reg
     store_word(score, $t1)
-
-    # TODO: remove once done debugging
-    # print_str(score_increase_debug)
-    # print_int($t1)
-    # print_str(newline)
 
     bge $t1, WINNING_SCORE, game_won
 .end_macro
