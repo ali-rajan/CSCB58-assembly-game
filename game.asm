@@ -6,22 +6,23 @@
 # Student: Ali Rajan, 1009034386, rajanal1, ali.rajan@mail.utoronto.ca
 #
 # Bitmap Display Configuration:
-# - Unit width in pixels: 8 (update this as needed)
-# - Unit height in pixels: 8 (update this as needed)
-# - Display width in pixels: 512 (update this as needed)
-# - Display height in pixels: 512 (update this as needed)
+# - Unit width in pixels: 8
+# - Unit height in pixels: 8
+# - Display width in pixels: 512
+# - Display height in pixels: 512
 # - Base Address for Display: 0x10008000 ($gp)
 #
 # Which milestones have been reached in this submission?
 # (See the assignment handout for descriptions of the milestones)
-# - Milestone 4
+# - Milestones 1-4 all done
 #
 # Which approved features have been implemented for milestone 4?
 # (See the assignment handout for the list of additional features)
 # 1. Moving objects
 # 2. Moving platforms
 # 3. Start menu
-# 4. Animated sprites (player water droplet dilation during movement and water streak on platform right collision)
+# 4. Animated sprites (player water droplet wobble/dilation during movement and water streak on platform right
+#    collision)
 #
 # Link to video demonstration for final submission:
 # - (insert YouTube / MyMedia / other URL here). Make sure we can view it!
@@ -32,7 +33,7 @@
 #
 # Any additional information that the TA needs to know:
 # - An extra screen is shown when the player quits (by pressing "q")
-# - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped when on the last
+# - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped while on the last
 #   platform
 # - When a platform collides the player from the right, there is a water streak effect (resembling a solid plowing
 #   through a water droplet); the smeared water particles can be recollected (it was intended that the collision would
