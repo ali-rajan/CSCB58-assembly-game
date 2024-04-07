@@ -21,7 +21,8 @@
 # 1. Moving objects
 # 2. Moving platforms
 # 3. Start menu
-# 4. Animated sprites (player water droplet dilation during movement and water streak on platform right collision)
+# 4. Animated sprites (player water droplet wobble/dilation during movement and water streak on platform right
+#    collision)
 #
 # Link to video demonstration for final submission:
 # - (insert YouTube / MyMedia / other URL here). Make sure we can view it!
@@ -32,7 +33,7 @@
 #
 # Any additional information that the TA needs to know:
 # - An extra screen is shown when the player quits (by pressing "q")
-# - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped when on the last
+# - The player has a "delayed jump" ability, allowing it to jump while midair if it had not jumped while on the last
 #   platform
 # - When a platform collides the player from the right, there is a water streak effect (resembling a solid plowing
 #   through a water droplet); the smeared water particles can be recollected (it was intended that the collision would
